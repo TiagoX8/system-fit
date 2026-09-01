@@ -1,4 +1,4 @@
-# Solo Leveling Fitness
+# Leveling Fitness
 
 Monorepo de um app full-stack de treinos em casa gamificado no estilo "Sistema" de Solo Leveling:
 rank E → S → Monarca das Sombras, XP, streak diário, recompensas por semanas consecutivas,
