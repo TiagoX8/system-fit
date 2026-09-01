@@ -1,0 +1,12 @@
+alembic
+apscheduler
+bcrypt
+email-validator
+fastapi
+psycopg2-binary
+pydantic
+python-dotenv
+python-jose[cryptography]
+pywebpush
+sqlalchemy
+uvicorn
