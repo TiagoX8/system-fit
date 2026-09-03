@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.ratelimit import RateLimitMiddleware
 from app.routes.auth import router as auth_router
 from app.routes.logs import router as logs_router
 from app.routes.progress import router as progress_router
@@ -35,6 +36,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Solo Leveling Fitness API", lifespan=lifespan)
+
+app.add_middleware(RateLimitMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
