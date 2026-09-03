@@ -29,6 +29,9 @@ cp .env.example .env
 | `SCHEDULER_TIMEZONE` | fuso usado pelos lembretes |
 | `SCHEDULER_ENABLED` | `false` desliga o APScheduler interno (lembretes via cron externo) |
 | `CRON_SECRET` | token do header `X-Cron-Secret` de `POST /push/dispatch` |
+| `RATE_LIMIT_ENABLED` | `false` desliga o rate limit por IP |
+| `RATE_LIMIT_PER_MINUTE` | requisições/min por IP, padrão 60 |
+| `AUTH_RATE_LIMIT_PER_MINUTE` | requisições/min por IP em `/auth/login` e `/auth/register`, padrão 10 |
 
 ## Migrations (Alembic)
 
@@ -56,6 +59,7 @@ app/
   schemas.py       Pydantic
   gamification.py  XP, ranks, streak, seed, recompensas e penalidades
   push.py          envio de Web Push (pywebpush)
+  ratelimit.py     middleware de rate limit por IP (429)
   scheduler.py     APScheduler: lembretes no horário do treino
   main.py          app FastAPI, CORS e routers
   routes/          auth, workouts, logs, progress, rewards, push
