@@ -27,6 +27,8 @@ cp .env.example .env
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | chaves do Web Push (`python generate_vapid.py`) |
 | `VAPID_SUBJECT` | `mailto:seu@email.com` |
 | `SCHEDULER_TIMEZONE` | fuso usado pelos lembretes |
+| `SCHEDULER_ENABLED` | `false` desliga o APScheduler interno (lembretes via cron externo) |
+| `CRON_SECRET` | token do header `X-Cron-Secret` de `POST /push/dispatch` |
 
 ## Migrations (Alembic)
 
@@ -76,6 +78,7 @@ alembic/           migrations
 | GET | `/push/public-key` | chave pública VAPID |
 | POST | `/push/subscribe` | salva a subscription do navegador |
 | POST | `/push/test` | envia uma notificação de teste |
+| POST | `/push/dispatch` | cron externo: envia os lembretes vencidos na janela (`window_minutes`) |
 
 Todas as rotas (exceto `/auth/*` e `/push/public-key`) exigem
 `Authorization: Bearer <token>` e são escopadas pelo `user_id` do token.
@@ -94,3 +97,7 @@ Todas as rotas (exceto `/auth/*` e `/push/public-key`) exigem
 O scheduler roda a cada minuto e envia o lembrete "A Sistema convoca você para o
 treino diário" no `scheduled_time` de cada treino ainda não concluído no dia.
 Funciona em Android/desktop; no iOS exige iOS 16.4+ com o site instalado como PWA.
+
+Em hospedagem gratuita que hiberna o processo, defina `SCHEDULER_ENABLED=false` e chame
+`POST /push/dispatch?window_minutes=6` a cada 5 minutos com o header `X-Cron-Secret`
+(ver `DEPLOY.md` na raiz).

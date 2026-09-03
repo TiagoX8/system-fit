@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: system-fit-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      # Cole a connection string do Neon (com ?sslmode=require).
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      # URL do frontend na Vercel.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: SCHEDULER_TIMEZONE
+        value: America/Sao_Paulo
+      # No plano free o serviço hiberna: os lembretes vêm do cron do GitHub Actions.
+      - key: SCHEDULER_ENABLED
+        value: "false"
