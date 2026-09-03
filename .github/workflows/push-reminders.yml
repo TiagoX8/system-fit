@@ -1,0 +1,24 @@
+name: Lembretes de treino
+
+# Dispara os Web Pushes vencidos e mantém o backend do plano free acordado.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /push/dispatch
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o response.json -w '%{http_code}' -X POST \
+            "$API_URL/push/dispatch?window_minutes=6" \
+            -H "X-Cron-Secret: $CRON_SECRET" \
+            --max-time 120 --retry 3 --retry-connrefused --retry-delay 15)
+          cat response.json
+          echo
+          test "$code" = "200"

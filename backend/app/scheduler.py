@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 REMINDER_TITLE = "A Sistema convoca você para o treino diário"
 SCHEDULER_TIMEZONE = os.getenv("SCHEDULER_TIMEZONE", "America/Sao_Paulo")
+SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "true").lower() not in {"0", "false", "no"}
 
 TZ = ZoneInfo(SCHEDULER_TIMEZONE)
 
@@ -33,20 +34,27 @@ def scheduled_for_today(workout: Workout, today: date) -> bool:
     return today.weekday() in days
 
 
-def dispatch_due_reminders() -> None:
-    """Roda a cada minuto e notifica os treinos cujo horário chegou."""
+def dispatch_due_reminders(window_minutes: int = 1) -> int:
+    """Notifica os treinos cujo horário caiu nos últimos `window_minutes`.
+
+    Retorna quantos lembretes foram enviados. A janela existe para o modo cron
+    externo (ex. GitHub Actions a cada 5 minutos), em que o processo não está
+    rodando continuamente.
+    """
     now = datetime.now(TZ)
     today = now.date()
+    now_minutes = now.hour * 60 + now.minute
     db = SessionLocal()
+    sent = 0
 
     try:
         workouts = db.query(Workout).all()
 
         for workout in workouts:
-            if workout.scheduled_time.hour != now.hour:
-                continue
+            workout_minutes = workout.scheduled_time.hour * 60 + workout.scheduled_time.minute
+            delta = now_minutes - workout_minutes
 
-            if workout.scheduled_time.minute != now.minute:
+            if delta < 0 or delta >= window_minutes:
                 continue
 
             if not scheduled_for_today(workout, today):
@@ -65,7 +73,7 @@ def dispatch_due_reminders() -> None:
             if already_done:
                 continue
 
-            send_push_to_user(
+            sent += send_push_to_user(
                 db,
                 workout.user_id,
                 title=REMINDER_TITLE,
@@ -75,8 +83,14 @@ def dispatch_due_reminders() -> None:
     finally:
         db.close()
 
+    return sent
+
 
 def start_scheduler() -> None:
+    if not SCHEDULER_ENABLED:
+        logger.info("SCHEDULER_ENABLED=false: lembretes dependem do cron externo")
+        return
+
     if not push_enabled():
         logger.warning("VAPID não configurado: scheduler de lembretes não foi iniciado")
         return

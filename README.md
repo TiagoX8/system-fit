@@ -89,9 +89,10 @@ No iOS é necessário iOS 16.4+ **e** instalar o site como PWA ("Adicionar à Te
 Início"); notificações no Safari em aba comum não são entregues. Também é preciso
 servir o app por HTTPS (ou `localhost`).
 
-## Deploy (opcional)
+## Deploy
 
-- Frontend: Vercel/Netlify com root `frontend/`, build `npm run build`, output `dist`,
-  variável `VITE_API_URL` apontando para a API publicada.
-- Backend: Render/Railway com root `backend/`, start
-  `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, e `ALLOWED_ORIGINS` com a URL do frontend.
+Passo a passo gratuito (Neon + Render + Vercel + cron do GitHub Actions) em [DEPLOY.md](DEPLOY.md).
+
+Em hospedagem que hiberna o serviço, use `SCHEDULER_ENABLED=false` e deixe os lembretes por
+conta de `POST /push/dispatch?window_minutes=6` (header `X-Cron-Secret: $CRON_SECRET`),
+chamado pelo workflow `.github/workflows/push-reminders.yml`.
