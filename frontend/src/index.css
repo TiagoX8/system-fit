@@ -92,6 +92,10 @@ body {
   color: var(--neon);
 }
 
+.panel-tag--inline {
+  margin: 1.75rem 0 1.25rem;
+}
+
 /* Tela de login */
 
 .gate {
@@ -665,7 +669,11 @@ body {
   padding: 1rem 1.1rem;
   background: rgba(8, 18, 38, 0.65);
   border: 1px solid var(--neon-dim);
-  opacity: 0.6;
+  opacity: 0.78;
+}
+
+.card .quest-actions {
+  margin-top: 0.85rem;
 }
 
 .card--unlocked {
