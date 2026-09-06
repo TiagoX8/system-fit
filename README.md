@@ -78,7 +78,8 @@ npm run lint
 
 ## Conselheiro do Sistema (IA)
 
-Chat de dúvidas sobre exercícios em `/conselheiro`, servido por `POST /coach/chat`
+Chat de dúvidas sobre exercícios na bolinha flutuante (canto inferior direito de
+qualquer tela autenticada), servido por `POST /coach/chat`
 (autenticado). O backend chama o Gemini com `GEMINI_API_KEY` — a chave fica só no
 servidor, o navegador nunca fala com o Google. Sem a chave o endpoint responde 503 e a
 tela mostra o Conselheiro como offline.

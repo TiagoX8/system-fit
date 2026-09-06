@@ -9,6 +9,7 @@ from app.coach import (
     ask_coach,
     check_and_count_usage,
     is_enabled,
+    refund_usage,
 )
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -77,6 +78,8 @@ def chat(
     try:
         reply = ask_coach(history, build_context(db, current_user))
     except CoachUnavailable as error:
+        refund_usage(current_user.id)
+
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
         ) from error
