@@ -28,22 +28,43 @@ DEFAULT_WORKOUTS: list[tuple[str, str]] = [
 ]
 
 DEFAULT_REWARDS: list[tuple[str, str, int]] = [
-    ("Pedra de Reforço", "1 semana consecutiva de treinos concluídos.", 1),
-    ("Fragmento de Mana", "2 semanas consecutivas: o Sistema reconhece sua disciplina.", 2),
-    ("Chave da Masmorra Dupla", "4 semanas consecutivas. Uma nova instância foi liberada.", 4),
-    ("Manto do Monarca", "12 semanas consecutivas. O exército das sombras é seu.", 12),
+    (
+        "Refeição livre no fim de semana",
+        "1 semana consecutiva: escolha um prato ou sobremesa sem culpa, uma vez.",
+        1,
+    ),
+    (
+        "Maratona liberada",
+        "2 semanas consecutivas: uma noite de série, filme ou jogo sem cobrança.",
+        2,
+    ),
+    (
+        "Compra que você adiou",
+        "4 semanas consecutivas: aquele tênis, fone ou camiseta na sua faixa de preço.",
+        4,
+    ),
+    (
+        "Rolê grande",
+        "12 semanas consecutivas: viagem curta, show ou dia inteiro fora — você ganhou.",
+        12,
+    ),
 ]
 
 DEFAULT_PUNISHMENTS: list[tuple[str, str, int]] = [
     (
-        "Penalidade da Sistema: Zona de Punição",
-        "Você falhou com a rotina diária. XP reduzido e sequência quebrada.",
+        "Sem doces por 7 dias",
+        "Você falhou com a rotina diária: nada de doce, chocolate ou sobremesa por uma semana.",
         1,
     ),
     (
-        "Penalidade da Sistema: Deserto Eterno",
-        "Três dias sem treinar. O Sistema rebaixa seu progresso.",
+        "Sem refrigerante e fast food por 14 dias",
+        "Três dias sem treinar: só água, café e comida de verdade por duas semanas.",
         3,
+    ),
+    (
+        "Treino em dobro no próximo dia",
+        "Cinco dias parado: o Sistema cobra a dívida com o dobro das séries na volta.",
+        5,
     ),
 ]
 

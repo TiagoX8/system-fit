@@ -114,6 +114,86 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  transform-origin: center;
+  animation: gate-open 620ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+}
+
+/* linha de luz que "abre" a janela do Sistema */
+.gate-beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(420px, calc(100% - 3rem));
+  height: 2px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, var(--neon), transparent);
+  box-shadow: 0 0 24px var(--neon);
+  pointer-events: none;
+  animation: gate-beam 900ms ease-out both;
+}
+
+.gate-window-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: gate-content 420ms ease-out 620ms both;
+}
+
+@keyframes gate-beam {
+  0% {
+    transform: translate(-50%, -50%) scaleX(0);
+    opacity: 0;
+  }
+  25% {
+    transform: translate(-50%, -50%) scaleX(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gate-open {
+  0% {
+    transform: scaleY(0.02);
+    opacity: 0.2;
+    border-color: var(--neon);
+    box-shadow: 0 0 40px var(--neon);
+  }
+  60% {
+    transform: scaleY(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes gate-content {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-panel,
+  .gate-beam,
+  .gate-window-content {
+    animation: none;
+  }
+
+  .gate-beam {
+    display: none;
+  }
 }
 
 .gate-title {
