@@ -35,7 +35,7 @@ Guarde `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY`.
 Sem blueprint dá no mesmo: **New → Web Service**, root directory `backend`, build
 `pip install -r requirements.txt && alembic upgrade head`, start
 `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, e as mesmas variáveis com
-`SCHEDULER_ENABLED=false`.
+`SCHEDULER_ENABLED=false` e `FORCE_HTTPS=true`.
 
 ## 4. Frontend — Vercel
 

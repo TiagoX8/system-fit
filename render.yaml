@@ -31,3 +31,5 @@ services:
       # No plano free o serviço hiberna: os lembretes vêm do cron do GitHub Actions.
       - key: SCHEDULER_ENABLED
         value: "false"
+      - key: FORCE_HTTPS
+        value: "true"

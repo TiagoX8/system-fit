@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
+from app.hardening import FORCE_HTTPS, SecurityHeadersMiddleware
 from app.ratelimit import RateLimitMiddleware
 from app.routes.auth import router as auth_router
 from app.routes.logs import router as logs_router
@@ -37,6 +39,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Solo Leveling Fitness API", lifespan=lifespan)
 
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
 app.add_middleware(
@@ -46,6 +49,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if FORCE_HTTPS:
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 app.include_router(auth_router)
 app.include_router(workouts_router)
