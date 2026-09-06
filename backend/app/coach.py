@@ -16,11 +16,11 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # Usado quando o modelo configurado não existe para a chave (404).
-FALLBACK_MODEL = "gemini-2.0-flash"
+FALLBACK_MODEL = "gemini-3.6-flash"
 
 # Teto por usuário para não estourar a cota gratuita nem travar o app.
 COACH_MESSAGES_PER_DAY = int(os.getenv("COACH_MESSAGES_PER_DAY", "40"))
