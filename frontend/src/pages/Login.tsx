@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from 'auth-lite-react'
 
 import { registerUser } from '../api'
+
+/* duração total da abertura da janela definida em index.css */
+const GATE_ANIMATION_MS = 3400
 
 export default function Login() {
   const { login } = useAuth()
@@ -13,6 +16,13 @@ export default function Login() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [opening, setOpening] = useState(true)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setOpening(false), GATE_ANIMATION_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -42,10 +52,20 @@ export default function Login() {
   return (
     <div className="gate">
       <div className="gate-glow" />
-      <div className="gate-beam" aria-hidden="true" />
 
-      <form className="system-panel gate-panel" onSubmit={handleSubmit}>
-        <div className="gate-window-content">
+      {opening && (
+        <div className="gate-intro" aria-hidden="true">
+          <span className="gate-notice">Notificação do Sistema</span>
+          <span className="gate-spark" />
+          <span className="gate-beam" />
+        </div>
+      )}
+
+      <form
+        className={`system-panel gate-panel${opening ? ' is-opening' : ''}`}
+        onSubmit={handleSubmit}
+      >
+        <div className={`gate-window-content${opening ? ' is-opening' : ''}`}>
           <p className="panel-tag">Janela de Status</p>
           <h1 className="gate-title">SISTEMA</h1>
           <p className="gate-subtitle">
