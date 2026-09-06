@@ -43,6 +43,18 @@ export interface Punishment {
   unlocked_at: string | null
 }
 
+export interface RewardInput {
+  title: string
+  description: string
+  threshold_weeks: number
+}
+
+export interface PunishmentInput {
+  title: string
+  description: string
+  threshold_streak: number
+}
+
 export interface Progress {
   current_streak: number
   longest_streak: number

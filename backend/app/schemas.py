@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserBase(BaseModel):
@@ -81,6 +81,20 @@ class WorkoutLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RewardBase(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    threshold_weeks: int = Field(ge=1, le=104)
+
+
+class RewardCreate(RewardBase):
+    pass
+
+
+class RewardUpdate(RewardBase):
+    pass
+
+
 class RewardResponse(BaseModel):
     id: int
     title: str
@@ -90,6 +104,20 @@ class RewardResponse(BaseModel):
     unlocked_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PunishmentBase(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    threshold_streak: int = Field(ge=1, le=60)
+
+
+class PunishmentCreate(PunishmentBase):
+    pass
+
+
+class PunishmentUpdate(PunishmentBase):
+    pass
 
 
 class PunishmentResponse(BaseModel):

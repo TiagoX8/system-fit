@@ -80,7 +80,8 @@ alembic/           migrations
 | POST | `/workouts/{id}/complete` | conclui o treino do dia |
 | GET | `/logs/` | histórico de conclusões |
 | GET | `/progress/` | rank, XP, streak, recorde, semanas, recompensas e penalidades |
-| GET | `/rewards/` e `/punishments/` | listagem e avaliação |
+| GET/POST | `/rewards/` e `/punishments/` | listagem (com avaliação) e criação |
+| PUT/DELETE | `/rewards/{id}` e `/punishments/{id}` | edita/remove (mudar a meta rearma o item) |
 | GET | `/push/public-key` | chave pública VAPID |
 | POST | `/push/subscribe` | salva a subscription do navegador |
 | POST | `/push/test` | envia uma notificação de teste |
