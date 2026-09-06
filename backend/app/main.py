@@ -9,6 +9,7 @@ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from app.hardening import FORCE_HTTPS, SecurityHeadersMiddleware
 from app.ratelimit import RateLimitMiddleware
 from app.routes.auth import router as auth_router
+from app.routes.coach import router as coach_router
 from app.routes.logs import router as logs_router
 from app.routes.progress import router as progress_router
 from app.routes.push import router as push_router
@@ -60,6 +61,7 @@ app.include_router(progress_router)
 app.include_router(rewards_router)
 app.include_router(punishments_router)
 app.include_router(push_router)
+app.include_router(coach_router)
 
 
 @app.get("/")

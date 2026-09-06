@@ -76,6 +76,18 @@ npm run lint
 5. **Penalidade** — ao quebrar a sequência, o Sistema reseta o streak, reduz XP e
    marca a punição correspondente.
 
+## Conselheiro do Sistema (IA)
+
+Chat de dúvidas sobre exercícios em `/conselheiro`, servido por `POST /coach/chat`
+(autenticado). O backend chama o Gemini com `GEMINI_API_KEY` — a chave fica só no
+servidor, o navegador nunca fala com o Google. Sem a chave o endpoint responde 503 e a
+tela mostra o Conselheiro como offline.
+
+- Chave gratuita (sem cartão): https://aistudio.google.com/apikey
+- No Render: Environment → `GEMINI_API_KEY`. Localmente, `backend/.env`.
+- Além do rate limit por IP, cada usuário tem `COACH_MESSAGES_PER_DAY` mensagens (40)
+  para não estourar a cota gratuita.
+
 ## Web Push
 
 - O frontend registra o service worker (`frontend/src/sw.ts`), pede permissão de

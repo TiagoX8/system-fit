@@ -7,6 +7,7 @@ const LINKS = [
   { to: '/treinos', label: 'Missões' },
   { to: '/recompensas', label: 'Recompensas' },
   { to: '/historico', label: 'Registro' },
+  { to: '/conselheiro', label: 'Conselheiro' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {

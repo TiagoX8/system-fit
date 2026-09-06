@@ -2,6 +2,7 @@ import { useAuth } from 'auth-lite-react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import Layout from './components/Layout'
+import Coach from './pages/Coach'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
 import Login from './pages/Login'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/treinos" element={<Workouts />} />
         <Route path="/recompensas" element={<Rewards />} />
         <Route path="/historico" element={<History />} />
+        <Route path="/conselheiro" element={<Coach />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Layout>
