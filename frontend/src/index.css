@@ -6,6 +6,7 @@
   --neon-dim: rgba(76, 201, 255, 0.12);
   --violet: #7b6cff;
   --danger: #ff5f6d;
+  --success: #46e294;
   --text: #dceaff;
   --muted: #7f93b5;
 
@@ -722,8 +723,43 @@ body {
 }
 
 .calendar-cell--done {
+  background: var(--success);
+  border-color: var(--success);
+  box-shadow: 0 0 10px rgba(70, 226, 148, 0.35);
+}
+
+.calendar-cell--failed {
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(255, 95, 109, 0.35);
+}
+
+.calendar-cell--today {
   background: var(--neon);
-  box-shadow: 0 0 10px var(--neon-soft);
+  border-color: #fff;
+  box-shadow: 0 0 12px var(--neon-soft);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.calendar-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.calendar-legend .calendar-cell {
+  width: 12px;
+  aspect-ratio: 1;
 }
 
 .log-list li {
