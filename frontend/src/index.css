@@ -785,12 +785,16 @@ body {
   text-overflow: ellipsis;
 }
 
-.log-count {
+.log-mark {
   flex: 0 0 auto;
-  font-size: 0.74rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--neon);
+  width: 1.4rem;
+  font-size: 1.05rem;
+  text-align: center;
+  color: var(--success);
+}
+
+.log-mark--fail {
+  color: var(--danger);
 }
 
 /* Alertas */
@@ -815,10 +819,6 @@ body {
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: 1fr;
-  }
-
-  .log-titles {
-    display: none;
   }
 
   .calendar {

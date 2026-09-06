@@ -5,19 +5,8 @@ import { apiFetch } from '../api'
 import type { Workout, WorkoutLog } from '../types'
 
 const DAYS_SHOWN = 70
-const SESSIONS_SHOWN = 14
 
-const DAY_FORMAT = new Intl.DateTimeFormat('pt-BR', {
-  weekday: 'short',
-  day: '2-digit',
-  month: '2-digit',
-})
-
-function formatDay(date: string): string {
-  const [year, month, day] = date.split('-').map(Number)
-
-  return DAY_FORMAT.format(new Date(year, month - 1, day)).replace('.,', ',')
-}
+const SHORT_DATE = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' })
 
 function isoDay(day: Date): string {
   const month = `${day.getMonth() + 1}`.padStart(2, '0')
@@ -42,6 +31,26 @@ function lastDays(count: number): Date[] {
 /** 0 = segunda, como no backend (`Workout.days_of_week`). */
 function systemWeekday(day: Date): number {
   return (day.getDay() + 6) % 7
+}
+
+function formatShort(day: Date): string {
+  return SHORT_DATE.format(day)
+}
+
+type DayStatus = 'today' | 'done' | 'failed' | 'idle'
+
+interface DayCell {
+  date: string
+  day: Date
+  status: DayStatus
+  label: string
+}
+
+interface WeekSummary {
+  key: string
+  range: string
+  done: number
+  failed: number
 }
 
 export default function History() {
@@ -79,28 +88,10 @@ export default function History() {
     return counts
   }, [logs])
 
-  const sessions = useMemo(() => {
-    const titleById = new Map(workouts.map((workout) => [workout.id, workout.title]))
-    const byDate = new Map<string, string[]>()
-
-    for (const log of logs) {
-      if (!log.completed) continue
-
-      const titles = byDate.get(log.date) ?? []
-      titles.push(titleById.get(log.workout_id) ?? 'Treino removido')
-      byDate.set(log.date, titles)
-    }
-
-    return [...byDate.entries()]
-      .sort(([a], [b]) => (a < b ? 1 : -1))
-      .slice(0, SESSIONS_SHOWN)
-      .map(([date, titles]) => ({ date, titles }))
-  }, [logs, workouts])
-
   const days = useMemo(() => lastDays(DAYS_SHOWN), [])
   const today = isoDay(new Date())
 
-  const cells = useMemo(() => {
+  const cells = useMemo<DayCell[]>(() => {
     // Antes do primeiro treino cadastrado não havia rotina para cumprir.
     const startedAt = workouts.reduce<string | null>((earliest, workout) => {
       const created = workout.created_at.slice(0, 10)
@@ -118,7 +109,7 @@ export default function History() {
           workout.created_at.slice(0, 10) <= date,
       )
 
-      let status: 'today' | 'done' | 'failed' | 'idle'
+      let status: DayStatus
       let label: string
 
       if (date === today) {
@@ -135,9 +126,39 @@ export default function History() {
         label = 'sem treino previsto'
       }
 
-      return { date, status, label }
+      return { date, day, status, label }
     })
   }, [countsByDate, days, today, workouts])
+
+  const weeks = useMemo<WeekSummary[]>(() => {
+    const groups = new Map<string, DayCell[]>()
+
+    for (const cell of cells) {
+      const monday = new Date(cell.day)
+      monday.setDate(cell.day.getDate() - systemWeekday(cell.day))
+      const key = isoDay(monday)
+
+      const group = groups.get(key) ?? []
+      group.push(cell)
+      groups.set(key, group)
+    }
+
+    return [...groups.entries()]
+      .sort(([a], [b]) => (a < b ? 1 : -1))
+      .map(([key, group]) => {
+        const done = group.filter(
+          (cell) => cell.status === 'done' || (cell.status === 'today' && countsByDate.has(cell.date)),
+        ).length
+
+        return {
+          key,
+          range: `${formatShort(group[0].day)} – ${formatShort(group[group.length - 1].day)}`,
+          done,
+          failed: group.filter((cell) => cell.status === 'failed').length,
+        }
+      })
+      .filter((week) => week.done > 0 || week.failed > 0)
+  }, [cells, countsByDate])
 
   return (
     <div className="stack">
@@ -168,18 +189,20 @@ export default function History() {
           </li>
         </ul>
 
-        {sessions.length === 0 ? (
+        {weeks.length === 0 ? (
           <p className="muted">Nenhuma caçada registrada ainda.</p>
         ) : (
           <ul className="log-list">
-            {sessions.map((session) => (
-              <li key={session.date}>
-                <span className="log-day">{formatDay(session.date)}</span>
-                <span className="log-titles" title={session.titles.join(', ')}>
-                  {session.titles.join(' · ')}
+            {weeks.map((week) => (
+              <li key={week.key}>
+                <span className="log-day">{week.range}</span>
+                <span className="log-titles">
+                  {week.done} dia{week.done === 1 ? '' : 's'} feito{week.done === 1 ? '' : 's'}
+                  {week.failed > 0 &&
+                    ` · ${week.failed} falha${week.failed === 1 ? '' : 's'}`}
                 </span>
-                <span className="log-count">
-                  {session.titles.length} treino{session.titles.length > 1 ? 's' : ''}
+                <span className={week.failed > 0 ? 'log-mark log-mark--fail' : 'log-mark'}>
+                  {week.failed > 0 ? '✗' : '✓'}
                 </span>
               </li>
             ))}
