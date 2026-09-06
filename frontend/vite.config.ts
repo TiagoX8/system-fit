@@ -19,8 +19,8 @@ export default defineConfig({
         type: 'module',
       },
       manifest: {
-        name: 'Solo Leveling Fitness',
-        short_name: 'Sistema',
+        name: 'System Fitness',
+        short_name: 'System Fitness',
         description: 'Treinos em casa gamificados pelo Sistema',
         theme_color: '#050914',
         background_color: '#050914',
