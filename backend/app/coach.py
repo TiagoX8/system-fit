@@ -4,6 +4,7 @@ A chave nunca chega ao frontend: o navegador fala só com este backend, que
 encaminha para a API do Gemini e devolve o texto.
 """
 
+import logging
 import os
 import time
 
@@ -12,9 +13,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+
+# Usado quando o modelo configurado não existe para a chave (404).
+FALLBACK_MODEL = "gemini-2.0-flash"
 
 # Teto por usuário para não estourar a cota gratuita nem travar o app.
 COACH_MESSAGES_PER_DAY = int(os.getenv("COACH_MESSAGES_PER_DAY", "40"))
@@ -52,6 +58,18 @@ class CoachQuotaExceeded(RuntimeError):
     pass
 
 
+def provider_error_message(response: httpx.Response) -> str:
+    """Mensagem de erro do Gemini, para o usuário saber o que configurar."""
+    try:
+        error = response.json().get("error") or {}
+    except ValueError:
+        return "resposta ilegível do provedor"
+
+    message = error.get("message") or error.get("status") or "erro desconhecido"
+
+    return str(message)[:200]
+
+
 def is_enabled() -> bool:
     return bool(GEMINI_API_KEY)
 
@@ -78,6 +96,14 @@ def check_and_count_usage(user_id: int) -> int:
     return COACH_MESSAGES_PER_DAY - (count + 1)
 
 
+def refund_usage(user_id: int) -> None:
+    """Devolve a mensagem quando a resposta não chegou."""
+    window_start, count = _usage.get(user_id, (time.monotonic(), 0))
+
+    if count > 0:
+        _usage[user_id] = (window_start, count - 1)
+
+
 def build_contents(history: list[dict], context: str) -> list[dict]:
     """Converte o histórico do chat no formato `contents` do Gemini."""
     contents: list[dict] = []
@@ -98,6 +124,18 @@ def build_contents(history: list[dict], context: str) -> list[dict]:
     return contents
 
 
+def _call_gemini(model: str, payload: dict) -> httpx.Response:
+    try:
+        return httpx.post(
+            f"{GEMINI_URL}/{model}:generateContent",
+            headers={"x-goog-api-key": GEMINI_API_KEY},
+            json=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except httpx.HTTPError as error:
+        raise CoachUnavailable("O Conselheiro não respondeu. Tente de novo.") from error
+
+
 def ask_coach(history: list[dict], context: str) -> str:
     if not is_enabled():
         raise CoachUnavailable(DISABLED_MESSAGE)
@@ -108,15 +146,15 @@ def ask_coach(history: list[dict], context: str) -> str:
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 600},
     }
 
-    try:
-        response = httpx.post(
-            f"{GEMINI_URL}/{GEMINI_MODEL}:generateContent",
-            headers={"x-goog-api-key": GEMINI_API_KEY},
-            json=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
+    response = _call_gemini(GEMINI_MODEL, payload)
+
+    if response.status_code == 404 and GEMINI_MODEL != FALLBACK_MODEL:
+        logger.warning(
+            "Modelo %s indisponível para esta chave; usando %s",
+            GEMINI_MODEL,
+            FALLBACK_MODEL,
         )
-    except httpx.HTTPError as error:
-        raise CoachUnavailable("O Conselheiro não respondeu. Tente de novo.") from error
+        response = _call_gemini(FALLBACK_MODEL, payload)
 
     if response.status_code == 429:
         raise CoachUnavailable(
@@ -124,7 +162,12 @@ def ask_coach(history: list[dict], context: str) -> str:
         )
 
     if response.status_code >= 400:
-        raise CoachUnavailable("O Conselheiro falhou ao responder. Tente de novo.")
+        reason = provider_error_message(response)
+        logger.warning("Gemini respondeu %s: %s", response.status_code, reason)
+
+        raise CoachUnavailable(
+            f"O Conselheiro falhou ({response.status_code}): {reason}"
+        )
 
     data = response.json()
     candidates = data.get("candidates") or []

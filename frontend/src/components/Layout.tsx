@@ -2,12 +2,13 @@ import type { ReactNode } from 'react'
 import { useAuth } from 'auth-lite-react'
 import { NavLink } from 'react-router-dom'
 
+import CoachWidget from './CoachWidget'
+
 const LINKS = [
   { to: '/dashboard', label: 'Status' },
   { to: '/treinos', label: 'Missões' },
   { to: '/recompensas', label: 'Recompensas' },
   { to: '/historico', label: 'Registro' },
-  { to: '/conselheiro', label: 'Conselheiro' },
 ]
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -45,6 +46,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </header>
 
       <main className="app-main">{children}</main>
+
+      <CoachWidget />
     </div>
   )
 }
