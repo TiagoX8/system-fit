@@ -764,10 +764,37 @@ body {
 
 .log-list li {
   display: flex;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--neon-dim);
   color: var(--muted);
+}
+
+.log-day {
+  flex: 0 0 auto;
+  min-width: 7.5rem;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.log-titles {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.log-mark {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  font-size: 1.05rem;
+  text-align: center;
+  color: var(--success);
+}
+
+.log-mark--fail {
+  color: var(--danger);
 }
 
 /* Alertas */
