@@ -5,6 +5,19 @@ import { apiFetch } from '../api'
 import type { Workout, WorkoutLog } from '../types'
 
 const DAYS_SHOWN = 70
+const SESSIONS_SHOWN = 14
+
+const DAY_FORMAT = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+})
+
+function formatDay(date: string): string {
+  const [year, month, day] = date.split('-').map(Number)
+
+  return DAY_FORMAT.format(new Date(year, month - 1, day)).replace('.,', ',')
+}
 
 function isoDay(day: Date): string {
   const month = `${day.getMonth() + 1}`.padStart(2, '0')
@@ -65,6 +78,24 @@ export default function History() {
 
     return counts
   }, [logs])
+
+  const sessions = useMemo(() => {
+    const titleById = new Map(workouts.map((workout) => [workout.id, workout.title]))
+    const byDate = new Map<string, string[]>()
+
+    for (const log of logs) {
+      if (!log.completed) continue
+
+      const titles = byDate.get(log.date) ?? []
+      titles.push(titleById.get(log.workout_id) ?? 'Treino removido')
+      byDate.set(log.date, titles)
+    }
+
+    return [...byDate.entries()]
+      .sort(([a], [b]) => (a < b ? 1 : -1))
+      .slice(0, SESSIONS_SHOWN)
+      .map(([date, titles]) => ({ date, titles }))
+  }, [logs, workouts])
 
   const days = useMemo(() => lastDays(DAYS_SHOWN), [])
   const today = isoDay(new Date())
@@ -137,14 +168,23 @@ export default function History() {
           </li>
         </ul>
 
-        <ul className="log-list">
-          {logs.slice(0, 30).map((log) => (
-            <li key={log.id}>
-              <span>{log.date}</span>
-              <span>{log.completed ? 'concluído' : 'pendente'}</span>
-            </li>
-          ))}
-        </ul>
+        {sessions.length === 0 ? (
+          <p className="muted">Nenhuma caçada registrada ainda.</p>
+        ) : (
+          <ul className="log-list">
+            {sessions.map((session) => (
+              <li key={session.date}>
+                <span className="log-day">{formatDay(session.date)}</span>
+                <span className="log-titles" title={session.titles.join(', ')}>
+                  {session.titles.join(' · ')}
+                </span>
+                <span className="log-count">
+                  {session.titles.length} treino{session.titles.length > 1 ? 's' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   )
