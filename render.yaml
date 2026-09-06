@@ -33,3 +33,7 @@ services:
         value: "false"
       - key: FORCE_HTTPS
         value: "true"
+      # Chave do Gemini (https://aistudio.google.com/apikey); sem ela o
+      # Conselheiro do Sistema aparece como offline.
+      - key: GEMINI_API_KEY
+        sync: false

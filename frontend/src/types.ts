@@ -75,4 +75,19 @@ export interface CompleteWorkoutResult {
   unlocked_rewards: Reward[]
 }
 
+export interface CoachMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface CoachStatus {
+  enabled: boolean
+  messages_per_day: number
+}
+
+export interface CoachReply {
+  reply: string
+  remaining_today: number
+}
+
 export const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']

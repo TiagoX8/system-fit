@@ -3,6 +3,7 @@ apscheduler
 bcrypt
 email-validator
 fastapi
+httpx
 psycopg2-binary
 pydantic
 python-dotenv

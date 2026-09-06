@@ -28,6 +28,8 @@ Guarde `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY`.
    - `DATABASE_URL` (Neon)
    - `ALLOWED_ORIGINS` (URL do frontend na Vercel, ex. `https://system-fit.vercel.app`)
    - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:seu@email.com`)
+   - `GEMINI_API_KEY` (crie grátis em https://aistudio.google.com/apikey) — sem ela o
+     Conselheiro do Sistema aparece como offline, o resto do app funciona normal
 3. `SECRET_KEY` e `CRON_SECRET` são gerados automaticamente — copie o valor de `CRON_SECRET`
    (aba Environment) para usar no passo 5.
 4. O build roda `alembic upgrade head`, então o schema é criado no primeiro deploy.

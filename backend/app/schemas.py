@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -170,3 +171,30 @@ class PushSubscriptionResponse(BaseModel):
 
 class VapidPublicKeyResponse(BaseModel):
     public_key: str | None
+
+
+class CoachMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+
+class CoachRequest(BaseModel):
+    messages: list[CoachMessage] = Field(min_length=1, max_length=20)
+
+    @field_validator("messages")
+    @classmethod
+    def last_must_be_user(cls, messages: list["CoachMessage"]) -> list["CoachMessage"]:
+        if messages[-1].role != "user":
+            raise ValueError("a última mensagem precisa ser do usuário")
+
+        return messages
+
+
+class CoachResponse(BaseModel):
+    reply: str
+    remaining_today: int
+
+
+class CoachStatusResponse(BaseModel):
+    enabled: bool
+    messages_per_day: int
