@@ -120,16 +120,27 @@ async def chat_stream(
 
     chunks = stream_coach(history, context).__aiter__()
 
-    # O primeiro pedaço é puxado aqui para que falha do provedor ainda vire
-    # HTTP 502 com a mensagem certa, em vez de um stream vazio.
+    # O primeiro pedaço é puxado aqui: se o stream não entrega nada, ainda dá
+    # para responder pela chamada normal, e só então o erro vira HTTP 502.
     try:
         first = await anext(chunks, "")
-    except CoachUnavailable as error:
-        refund_usage(current_user.id)
+    except CoachUnavailable as stream_error:
+        logger.warning("Stream do Conselheiro falhou: %s", stream_error)
 
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
-        ) from error
+        try:
+            reply = await run_in_threadpool(ask_coach, history, context)
+        except CoachUnavailable as error:
+            refund_usage(current_user.id)
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
+            ) from error
+
+        return StreamingResponse(
+            iter([reply]),
+            media_type="text/plain; charset=utf-8",
+            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
+        )
 
     async def body() -> AsyncIterator[str]:
         yield first
