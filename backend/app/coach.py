@@ -65,6 +65,15 @@ MAX_MESSAGE_CHARS = 1200
 # Timeout de cada requisição HTTP.
 REQUEST_TIMEOUT_SECONDS = 30
 
+# No streaming a leitura fica esperando o modelo escrever o próximo trecho,
+# então ela precisa de mais folga do que o resto da requisição.
+STREAM_TIMEOUT = httpx.Timeout(
+    connect=10.0,
+    read=60.0,
+    write=30.0,
+    pool=10.0,
+)
+
 # Número máximo de tentativas para erros temporários.
 MAX_RETRIES = 3
 
@@ -648,7 +657,9 @@ async def stream_coach(
     if not is_enabled():
         raise CoachUnavailable(DISABLED_MESSAGE)
 
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+    emitted = False
+
+    async with httpx.AsyncClient(timeout=STREAM_TIMEOUT) as client:
 
         for model in get_models_to_try():
 
@@ -679,16 +690,14 @@ async def stream_coach(
 
                         continue
 
-                    sent_any = False
-
                     async for line in response.aiter_lines():
 
                         for chunk in sse_text(line):
-                            sent_any = True
+                            emitted = True
 
                             yield chunk
 
-                    if sent_any:
+                    if emitted:
                         return
 
             except httpx.HTTPError as error:
@@ -698,10 +707,16 @@ async def stream_coach(
                     error,
                 )
 
-                raise CoachUnavailable(
-                    "A conexão com a IA caiu no meio da resposta. "
-                    "Tente novamente."
-                ) from error
+                # Com texto na tela não há como recomeçar sem repetir o que o
+                # Caçador já leu; sem texto ainda vale tentar o próximo modelo
+                # e, no fim, a resposta inteira sem streaming.
+                if emitted:
+                    raise CoachUnavailable(
+                        "A conexão com a IA caiu no meio da resposta. "
+                        "Tente novamente."
+                    ) from error
+
+                continue
 
             logger.warning(
                 "Modelo %s abriu o stream sem gerar texto.",
