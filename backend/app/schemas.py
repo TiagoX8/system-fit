@@ -1,7 +1,14 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class UserBase(BaseModel):
@@ -173,9 +180,25 @@ class VapidPublicKeyResponse(BaseModel):
     public_key: str | None
 
 
+QUESTION_MAX_CHARS = 1000
+
+# A resposta do Conselheiro volta no histórico da pergunta seguinte e passa
+# folgado de mil caracteres, então o corte por papel é diferente.
+ANSWER_MAX_CHARS = 6000
+
+
 class CoachMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str = Field(min_length=1, max_length=1000)
+    content: str = Field(min_length=1, max_length=ANSWER_MAX_CHARS)
+
+    @model_validator(mode="after")
+    def question_within_limit(self) -> "CoachMessage":
+        if self.role == "user" and len(self.content) > QUESTION_MAX_CHARS:
+            raise ValueError(
+                f"a pergunta precisa ter no máximo {QUESTION_MAX_CHARS} caracteres"
+            )
+
+        return self
 
 
 class CoachRequest(BaseModel):

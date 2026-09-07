@@ -57,7 +57,12 @@ export default function CoachWidget() {
     setError('')
     setSending(true)
 
-    const sent = history.filter((message) => message !== WELCOME).slice(-12)
+    // Histórico curto e cortado: cada resposta anterior entra no prompt da
+    // pergunta seguinte, então mandar tudo faz cada pergunta demorar mais.
+    const sent = history
+      .filter((message) => message !== WELCOME)
+      .slice(-6)
+      .map((message) => ({ ...message, content: message.content.slice(0, 1200) }))
 
     let reply = ''
 

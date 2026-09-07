@@ -56,7 +56,11 @@ COACH_MESSAGES_PER_DAY = int(
 DAY_SECONDS = 24 * 60 * 60
 
 # Quantidade máxima de mensagens antigas enviadas ao Gemini.
-MAX_HISTORY_MESSAGES = 12
+MAX_HISTORY_MESSAGES = 6
+
+# Cada resposta anterior volta no prompt da pergunta seguinte; sem corte o
+# histórico cresce e cada pergunta fica mais lenta que a anterior.
+MAX_MESSAGE_CHARS = 1200
 
 # Timeout de cada requisição HTTP.
 REQUEST_TIMEOUT_SECONDS = 30
@@ -234,7 +238,7 @@ def build_contents(
 
     for index, message in enumerate(recent_history):
 
-        text = message["content"]
+        text = message["content"][:MAX_MESSAGE_CHARS]
 
         # O contexto da rotina é enviado junto da primeira mensagem
         # do histórico.
