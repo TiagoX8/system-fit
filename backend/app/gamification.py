@@ -11,12 +11,12 @@ XP_PER_WORKOUT = 50
 # XP mínimo acumulado para cada rank.
 RANKS: list[tuple[str, int]] = [
     ("E", 0),
-    ("D", 300),
-    ("C", 800),
-    ("B", 1600),
-    ("A", 3000),
-    ("S", 5000),
-    ("Monarca das Sombras", 10000),
+    ("D", 750),
+    ("C", 2000),
+    ("B", 4500),
+    ("A", 9000),
+    ("S", 16000),
+    ("Monarca das Sombras", 30000),
 ]
 
 DEFAULT_WORKOUTS: list[tuple[str, str]] = [
@@ -237,6 +237,14 @@ def build_progress_payload(db: Session, user: User, today: date) -> dict:
     evaluate_punishments(db, user, today)
 
     progress = get_or_create_progress(db, user)
+
+    # A escala de ranks pode mudar entre versões: reavalia o rank guardado.
+    rank = rank_for_xp(progress.xp)
+
+    if progress.rank != rank:
+        progress.rank = rank
+        db.commit()
+
     next_rank, xp_to_next = next_rank_for_xp(progress.xp)
 
     rewards = db.query(Reward).filter(Reward.user_id == user.id).order_by(Reward.threshold_weeks).all()

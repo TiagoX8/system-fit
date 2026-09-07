@@ -43,6 +43,44 @@ export async function apiFetch<T>(
   return data as T
 }
 
+export async function* apiStream(
+  path: string,
+  token: string | null,
+  body: unknown,
+): AsyncGenerator<string> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+
+    throw new Error(extractErrorMessage(data, 'O Sistema não respondeu como esperado'))
+  }
+
+  if (!response.body) {
+    yield await response.text()
+
+    return
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+
+  for (;;) {
+    const { done, value } = await reader.read()
+
+    if (done) break
+
+    yield decoder.decode(value, { stream: true })
+  }
+}
+
 export async function registerUser(email: string, name: string, password: string) {
   return apiFetch<{ id: number; email: string; name: string | null }>('/auth/register', null, {
     method: 'POST',

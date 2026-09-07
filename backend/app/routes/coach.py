@@ -1,4 +1,7 @@
+from collections.abc import Iterator
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -10,6 +13,7 @@ from app.coach import (
     check_and_count_usage,
     is_enabled,
     refund_usage,
+    stream_coach,
 )
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -85,3 +89,53 @@ def chat(
         ) from error
 
     return {"reply": reply, "remaining_today": remaining}
+
+
+@router.post("/chat/stream")
+def chat_stream(
+    payload: schemas.CoachRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Mesma resposta do `/coach/chat`, entregue em texto puro conforme sai."""
+    if not is_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="O Conselheiro do Sistema não está configurado no servidor.",
+        )
+
+    try:
+        check_and_count_usage(current_user.id)
+    except CoachQuotaExceeded as error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(error)
+        ) from error
+
+    history = [message.model_dump() for message in payload.messages]
+    chunks = stream_coach(history, build_context(db, current_user))
+
+    # O primeiro pedaço é puxado aqui para que falha do provedor ainda vire
+    # HTTP 502 com a mensagem certa, em vez de um stream vazio.
+    try:
+        first = next(chunks, "")
+    except CoachUnavailable as error:
+        refund_usage(current_user.id)
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
+        ) from error
+
+    def body() -> Iterator[str]:
+        yield first
+
+        try:
+            yield from chunks
+        except CoachUnavailable as error:
+            # Conexão caiu no meio: o texto já enviado fica, o resto vira aviso.
+            yield f"\n\n[{error}]"
+
+    return StreamingResponse(
+        body(),
+        media_type="text/plain; charset=utf-8",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
+    )
