@@ -62,6 +62,14 @@ REQUEST_TIMEOUT_SECONDS = 30
 # Número máximo de tentativas para erros temporários.
 MAX_RETRIES = 3
 
+# Teto de saída. Nos modelos Gemini 3 os tokens de raciocínio saem daqui
+# junto com o texto, então um teto curto corta a resposta no meio.
+MAX_OUTPUT_TOKENS = 1600
+
+# Raciocínio mínimo: o Conselheiro responde dúvida de treino, não precisa
+# planejar em várias etapas, e o padrão ("medium" no Gemini 3) dobra a espera.
+THINKING_LEVEL = "minimal"
+
 
 # ============================================================================
 # PROMPT DO CONSELHEIRO
@@ -257,6 +265,66 @@ def build_contents(
 # CHAMADA À API GEMINI
 # ============================================================================
 
+def thinking_config(model: str) -> dict:
+    """
+    Configuração de raciocínio aceita pela família do modelo.
+
+    Gemini 3 usa `thinkingLevel`; a série 2.5 só entende `thinkingBudget`.
+    """
+
+    if model.startswith("gemini-2"):
+        return {"thinkingBudget": 0}
+
+    return {"thinkingLevel": THINKING_LEVEL}
+
+
+def build_payload(
+    model: str,
+    history: list[dict],
+    context: str,
+) -> dict:
+    """
+    Monta o corpo da requisição para um modelo específico.
+    """
+
+    return {
+        "systemInstruction": {
+            "parts": [
+                {
+                    "text": SYSTEM_PROMPT
+                }
+            ]
+        },
+
+        "contents": build_contents(
+            history,
+            context,
+        ),
+
+        "generationConfig": {
+            "maxOutputTokens": MAX_OUTPUT_TOKENS,
+            "thinkingConfig": thinking_config(model),
+        },
+    }
+
+
+def without_thinking_config(payload: dict) -> dict:
+    """
+    Remove a configuração de raciocínio, para o caso de o modelo não aceitá-la.
+    """
+
+    generation_config = {
+        key: value
+        for key, value in payload["generationConfig"].items()
+        if key != "thinkingConfig"
+    }
+
+    return {
+        **payload,
+        "generationConfig": generation_config,
+    }
+
+
 def _call_gemini(
     model: str,
     payload: dict,
@@ -266,16 +334,16 @@ def _call_gemini(
 
     Erros tratados com retry:
     - 408 Request Timeout
-    - 429 Too Many Requests
     - 500 Internal Server Error
     - 502 Bad Gateway
     - 503 Service Unavailable
     - 504 Gateway Timeout
     """
 
+    # 429 fica fora: é cota/limite de chave, esperar não resolve e só
+    # aumenta o tempo que o Caçador passa olhando o "..".
     retry_status_codes = {
         408,
-        429,
         500,
         502,
         503,
@@ -418,6 +486,14 @@ def extract_gemini_text(
 
     candidate = candidates[0]
 
+    if candidate.get("finishReason") == "MAX_TOKENS":
+        logger.warning(
+            "Gemini cortou a resposta em maxOutputTokens=%s (tokens de "
+            "raciocínio: %s).",
+            MAX_OUTPUT_TOKENS,
+            (data.get("usageMetadata") or {}).get("thoughtsTokenCount"),
+        )
+
     content = candidate.get("content") or {}
 
     parts = content.get("parts") or []
@@ -489,29 +565,6 @@ def ask_coach(
         )
 
     # ------------------------------------------------------------------------
-    # Payload
-    # ------------------------------------------------------------------------
-
-    payload = {
-        "systemInstruction": {
-            "parts": [
-                {
-                    "text": SYSTEM_PROMPT
-                }
-            ]
-        },
-
-        "contents": build_contents(
-            history,
-            context,
-        ),
-
-        "generationConfig": {
-            "maxOutputTokens": 600,
-        },
-    }
-
-    # ------------------------------------------------------------------------
     # Modelos disponíveis
     # ------------------------------------------------------------------------
 
@@ -535,10 +588,35 @@ def ask_coach(
             model,
         )
 
+        payload = build_payload(
+            model,
+            history,
+            context,
+        )
+
         response = _call_gemini(
             model,
             payload,
         )
+
+        # --------------------------------------------------------------------
+        # 400 - configuração de raciocínio não aceita por este modelo
+        # --------------------------------------------------------------------
+
+        if (
+            response.status_code == 400
+            and "thinking" in provider_error_message(response).lower()
+        ):
+
+            logger.warning(
+                "Modelo %s não aceitou thinkingConfig; repetindo sem ele.",
+                model,
+            )
+
+            response = _call_gemini(
+                model,
+                without_thinking_config(payload),
+            )
 
         # --------------------------------------------------------------------
         # 404 - modelo inexistente

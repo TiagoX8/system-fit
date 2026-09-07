@@ -34,7 +34,7 @@ cp .env.example .env
 | `RATE_LIMIT_PER_MINUTE` | requisições/min por IP, padrão 60 |
 | `AUTH_RATE_LIMIT_PER_MINUTE` | requisições/min por IP em `/auth/login` e `/auth/register`, padrão 10 |
 | `GEMINI_API_KEY` | chave do Gemini para `POST /coach/chat`; vazio desativa o Conselheiro |
-| `GEMINI_MODEL` | modelo usado, padrão `gemini-2.5-flash` |
+| `GEMINI_MODEL` | modelo usado, padrão `gemini-3.6-flash` |
 | `COACH_MESSAGES_PER_DAY` | mensagens do Conselheiro por usuário por dia, padrão 40 |
 
 ## Migrations (Alembic)
