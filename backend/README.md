@@ -96,8 +96,8 @@ Todas as rotas (exceto `/auth/*` e `/push/public-key`) exigem
 ## Gamificação
 
 - 50 XP por treino concluído (metade para treinos extras no mesmo dia).
-- Ranks por XP: E (0), D (300), C (800), B (1600), A (3000), S (5000),
-  Monarca das Sombras (10000).
+- Ranks por XP: E (0), D (750), C (2000), B (4500), A (9000), S (16000),
+  Monarca das Sombras (30000).
 - Streak aumenta quando houve conclusão no dia anterior; ao pular dias o Sistema
   reseta o streak, reduz XP e marca a penalidade correspondente.
 - Recompensas desbloqueiam em 1, 2, 4 e 12 semanas consecutivas.

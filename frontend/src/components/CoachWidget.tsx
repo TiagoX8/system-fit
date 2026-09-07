@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from 'auth-lite-react'
 
-import { apiFetch } from '../api'
-import type { CoachMessage, CoachReply, CoachStatus } from '../types'
+import { apiFetch, apiStream } from '../api'
+import type { CoachMessage, CoachStatus } from '../types'
 
 const SUGGESTIONS = [
   'Como melhorar minha prancha?',
@@ -58,14 +58,17 @@ export default function CoachWidget() {
     setSending(true)
 
     try {
-      const answer = await apiFetch<CoachReply>('/coach/chat', token, {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: history.filter((message) => message !== WELCOME).slice(-12),
-        }),
+      const stream = apiStream('/coach/chat/stream', token, {
+        messages: history.filter((message) => message !== WELCOME).slice(-12),
       })
 
-      setMessages([...history, { role: 'assistant', content: answer.reply }])
+      let reply = ''
+
+      for await (const chunk of stream) {
+        reply += chunk
+
+        setMessages([...history, { role: 'assistant', content: reply }])
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'O Conselheiro não respondeu')
     } finally {

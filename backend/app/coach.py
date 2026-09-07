@@ -4,10 +4,12 @@ A chave nunca chega ao frontend: o navegador fala somente com este backend,
 que encaminha para a API do Gemini e devolve o texto.
 """
 
+import json
 import logging
 import os
 import random
 import time
+from collections.abc import Iterator
 
 import httpx
 from dotenv import load_dotenv
@@ -541,6 +543,159 @@ def get_models_to_try() -> list[str]:
             models.append(model)
 
     return models
+
+
+# ============================================================================
+# CONSELHEIRO EM STREAMING
+# ============================================================================
+
+def skippable_error(
+    model: str,
+    response: httpx.Response,
+) -> str:
+    """
+    Trata um erro do Gemini durante o streaming.
+
+    Devolve o motivo quando vale a pena tentar o próximo modelo (404/503) e
+    levanta `CoachUnavailable` quando o erro não tem como ser contornado.
+    """
+
+    reason = provider_error_message(response)
+
+    if response.status_code == 429:
+        logger.warning(
+            "Gemini retornou 429 no modelo %s: %s",
+            model,
+            reason,
+        )
+
+        raise CoachUnavailable(
+            "A cota ou o limite de requisições da IA "
+            "foi atingido. Tente novamente mais tarde."
+        )
+
+    if response.status_code in (404, 503):
+        logger.warning(
+            "Modelo %s indisponível (%s): %s",
+            model,
+            response.status_code,
+            reason,
+        )
+
+        return reason
+
+    logger.warning(
+        "Gemini respondeu %s no modelo %s: %s",
+        response.status_code,
+        model,
+        reason,
+    )
+
+    raise CoachUnavailable(
+        f"O Conselheiro falhou "
+        f"({response.status_code}): {reason}"
+    )
+
+
+def sse_text_chunks(response: httpx.Response) -> Iterator[str]:
+    """
+    Converte o SSE do `streamGenerateContent` em pedaços de texto.
+    """
+
+    for line in response.iter_lines():
+
+        if not line.startswith("data:"):
+            continue
+
+        raw = line[len("data:"):].strip()
+
+        if not raw or raw == "[DONE]":
+            continue
+
+        try:
+            data = json.loads(raw)
+
+        except ValueError:
+            logger.warning("Trecho de stream ilegível do Gemini.")
+
+            continue
+
+        for candidate in data.get("candidates") or []:
+
+            for part in (candidate.get("content") or {}).get("parts") or []:
+
+                text = part.get("text")
+
+                if text:
+                    yield text
+
+
+def stream_coach(
+    history: list[dict],
+    context: str,
+) -> Iterator[str]:
+    """
+    Igual ao `ask_coach`, mas entrega a resposta em pedaços conforme o Gemini
+    escreve — o Caçador começa a ler em ~1s em vez de esperar o texto inteiro.
+    """
+
+    if not is_enabled():
+        raise CoachUnavailable(DISABLED_MESSAGE)
+
+    for model in get_models_to_try():
+
+        payload = build_payload(
+            model,
+            history,
+            context,
+        )
+
+        try:
+            request = httpx.stream(
+                "POST",
+                f"{GEMINI_URL}/{model}:streamGenerateContent?alt=sse",
+                headers={
+                    "x-goog-api-key": GEMINI_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+
+        except httpx.HTTPError as error:
+            raise CoachUnavailable(
+                "O Conselheiro não respondeu. Tente novamente."
+            ) from error
+
+        with request as response:
+
+            if response.status_code >= 400:
+                response.read()
+
+                # Levanta quando o erro é definitivo; senão tenta o próximo.
+                skippable_error(model, response)
+
+                continue
+
+            sent_any = False
+
+            for chunk in sse_text_chunks(response):
+                sent_any = True
+
+                yield chunk
+
+            if sent_any:
+                return
+
+            logger.warning(
+                "Modelo %s abriu o stream sem gerar texto.",
+                model,
+            )
+
+    raise CoachUnavailable(
+        "O Conselheiro está temporariamente indisponível. "
+        "Tente novamente em alguns segundos."
+    )
 
 
 # ============================================================================
