@@ -9,7 +9,7 @@ import logging
 import os
 import random
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import httpx
 from dotenv import load_dotenv
@@ -56,7 +56,11 @@ COACH_MESSAGES_PER_DAY = int(
 DAY_SECONDS = 24 * 60 * 60
 
 # Quantidade máxima de mensagens antigas enviadas ao Gemini.
-MAX_HISTORY_MESSAGES = 12
+MAX_HISTORY_MESSAGES = 6
+
+# Cada resposta anterior volta no prompt da pergunta seguinte; sem corte o
+# histórico cresce e cada pergunta fica mais lenta que a anterior.
+MAX_MESSAGE_CHARS = 1200
 
 # Timeout de cada requisição HTTP.
 REQUEST_TIMEOUT_SECONDS = 30
@@ -234,7 +238,7 @@ def build_contents(
 
     for index, message in enumerate(recent_history):
 
-        text = message["content"]
+        text = message["content"][:MAX_MESSAGE_CHARS]
 
         # O contexto da rotina é enviado junto da primeira mensagem
         # do histórico.
@@ -597,61 +601,64 @@ def skippable_error(
     )
 
 
-def sse_text_chunks(response: httpx.Response) -> Iterator[str]:
+def sse_text(line: str) -> Iterator[str]:
     """
-    Converte o SSE do `streamGenerateContent` em pedaços de texto.
+    Extrai o texto de uma linha SSE do `streamGenerateContent`.
     """
 
-    for line in response.iter_lines():
+    if not line.startswith("data:"):
+        return
 
-        if not line.startswith("data:"):
-            continue
+    raw = line[len("data:"):].strip()
 
-        raw = line[len("data:"):].strip()
+    if not raw or raw == "[DONE]":
+        return
 
-        if not raw or raw == "[DONE]":
-            continue
+    try:
+        data = json.loads(raw)
 
-        try:
-            data = json.loads(raw)
+    except ValueError:
+        logger.warning("Trecho de stream ilegível do Gemini.")
 
-        except ValueError:
-            logger.warning("Trecho de stream ilegível do Gemini.")
+        return
 
-            continue
+    for candidate in data.get("candidates") or []:
 
-        for candidate in data.get("candidates") or []:
+        for part in (candidate.get("content") or {}).get("parts") or []:
 
-            for part in (candidate.get("content") or {}).get("parts") or []:
+            text = part.get("text")
 
-                text = part.get("text")
-
-                if text:
-                    yield text
+            if text:
+                yield text
 
 
-def stream_coach(
+async def stream_coach(
     history: list[dict],
     context: str,
-) -> Iterator[str]:
+) -> AsyncIterator[str]:
     """
     Igual ao `ask_coach`, mas entrega a resposta em pedaços conforme o Gemini
     escreve — o Caçador começa a ler em ~1s em vez de esperar o texto inteiro.
+
+    É assíncrono de propósito: um gerador síncrono seria iterado pelo Starlette
+    em threads diferentes do pool, e a conexão do httpx morria no meio do corpo
+    da resposta.
     """
 
     if not is_enabled():
         raise CoachUnavailable(DISABLED_MESSAGE)
 
-    for model in get_models_to_try():
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
 
-        payload = build_payload(
-            model,
-            history,
-            context,
-        )
+        for model in get_models_to_try():
 
-        try:
-            request = httpx.stream(
+            payload = build_payload(
+                model,
+                history,
+                context,
+            )
+
+            request = client.stream(
                 "POST",
                 f"{GEMINI_URL}/{model}:streamGenerateContent?alt=sse",
                 headers={
@@ -659,33 +666,42 @@ def stream_coach(
                     "Content-Type": "application/json",
                 },
                 json=payload,
-                timeout=REQUEST_TIMEOUT_SECONDS,
             )
 
-        except httpx.HTTPError as error:
-            raise CoachUnavailable(
-                "O Conselheiro não respondeu. Tente novamente."
-            ) from error
+            try:
+                async with request as response:
 
-        with request as response:
+                    if response.status_code >= 400:
+                        await response.aread()
 
-            if response.status_code >= 400:
-                response.read()
+                        # Levanta se o erro é definitivo; senão tenta o próximo.
+                        skippable_error(model, response)
 
-                # Levanta quando o erro é definitivo; senão tenta o próximo.
-                skippable_error(model, response)
+                        continue
 
-                continue
+                    sent_any = False
 
-            sent_any = False
+                    async for line in response.aiter_lines():
 
-            for chunk in sse_text_chunks(response):
-                sent_any = True
+                        for chunk in sse_text(line):
+                            sent_any = True
 
-                yield chunk
+                            yield chunk
 
-            if sent_any:
-                return
+                    if sent_any:
+                        return
+
+            except httpx.HTTPError as error:
+                logger.warning(
+                    "Stream do modelo %s falhou: %s",
+                    model,
+                    error,
+                )
+
+                raise CoachUnavailable(
+                    "A conexão com a IA caiu no meio da resposta. "
+                    "Tente novamente."
+                ) from error
 
             logger.warning(
                 "Modelo %s abriu o stream sem gerar texto.",
