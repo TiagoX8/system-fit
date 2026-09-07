@@ -1,8 +1,10 @@
-from collections.abc import Iterator
+import logging
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app import models, schemas
 from app.coach import (
@@ -18,6 +20,8 @@ from app.coach import (
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.gamification import get_or_create_progress
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/coach", tags=["coach"])
 
@@ -92,7 +96,7 @@ def chat(
 
 
 @router.post("/chat/stream")
-def chat_stream(
+async def chat_stream(
     payload: schemas.CoachRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -112,12 +116,14 @@ def chat_stream(
         ) from error
 
     history = [message.model_dump() for message in payload.messages]
-    chunks = stream_coach(history, build_context(db, current_user))
+    context = await run_in_threadpool(build_context, db, current_user)
+
+    chunks = stream_coach(history, context).__aiter__()
 
     # O primeiro pedaço é puxado aqui para que falha do provedor ainda vire
     # HTTP 502 com a mensagem certa, em vez de um stream vazio.
     try:
-        first = next(chunks, "")
+        first = await anext(chunks, "")
     except CoachUnavailable as error:
         refund_usage(current_user.id)
 
@@ -125,14 +131,19 @@ def chat_stream(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
         ) from error
 
-    def body() -> Iterator[str]:
+    async def body() -> AsyncIterator[str]:
         yield first
 
         try:
-            yield from chunks
+            async for chunk in chunks:
+                yield chunk
         except CoachUnavailable as error:
             # Conexão caiu no meio: o texto já enviado fica, o resto vira aviso.
             yield f"\n\n[{error}]"
+        except Exception:
+            logger.exception("Stream do Conselheiro interrompido.")
+
+            yield "\n\n[A resposta foi interrompida. Tente novamente.]"
 
     return StreamingResponse(
         body(),

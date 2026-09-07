@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from 'auth-lite-react'
 
 import { apiFetch, apiStream } from '../api'
-import type { CoachMessage, CoachStatus } from '../types'
+import type { CoachMessage, CoachReply, CoachStatus } from '../types'
 
 const SUGGESTIONS = [
   'Como melhorar minha prancha?',
@@ -57,19 +57,35 @@ export default function CoachWidget() {
     setError('')
     setSending(true)
 
+    const sent = history.filter((message) => message !== WELCOME).slice(-12)
+
+    let reply = ''
+
     try {
-      const stream = apiStream('/coach/chat/stream', token, {
-        messages: history.filter((message) => message !== WELCOME).slice(-12),
-      })
-
-      let reply = ''
-
-      for await (const chunk of stream) {
+      for await (const chunk of apiStream('/coach/chat/stream', token, { messages: sent })) {
         reply += chunk
 
         setMessages([...history, { role: 'assistant', content: reply }])
       }
     } catch (err: unknown) {
+      // Se o stream caiu antes de qualquer texto, ainda dá para responder pelo
+      // endpoint normal; com texto na tela o erro é mostrado como está.
+      if (!reply) {
+        try {
+          const answer = await apiFetch<CoachReply>('/coach/chat', token, {
+            method: 'POST',
+            body: JSON.stringify({ messages: sent }),
+          })
+
+          setMessages([...history, { role: 'assistant', content: answer.reply }])
+          setSending(false)
+
+          return
+        } catch {
+          // Cai na mensagem de erro do stream, que é a mais informativa.
+        }
+      }
+
       setError(err instanceof Error ? err.message : 'O Conselheiro não respondeu')
     } finally {
       setSending(false)
