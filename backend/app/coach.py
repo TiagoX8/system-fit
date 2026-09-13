@@ -4,6 +4,7 @@ A chave nunca chega ao frontend: o navegador fala somente com este backend,
 que encaminha para a API do Gemini e devolve o texto.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -74,6 +75,11 @@ STREAM_TIMEOUT = httpx.Timeout(
     pool=10.0,
 )
 
+# Com raciocínio mínimo o primeiro trecho sai em poucos segundos. Se demorar
+# muito mais que isso o modelo está pensando (ou congestionado) e vale mais
+# perguntar ao próximo do que deixar o Caçador esperando meio minuto.
+FIRST_CHUNK_TIMEOUT_SECONDS = 12.0
+
 # Número máximo de tentativas para erros temporários.
 MAX_RETRIES = 3
 
@@ -129,6 +135,16 @@ Regras:
 DISABLED_MESSAGE = (
     "O Conselheiro do Sistema está offline: "
     "configure GEMINI_API_KEY no servidor."
+)
+
+QUOTA_MESSAGE = (
+    "A cota ou o limite de requisições da IA "
+    "foi atingido. Tente novamente mais tarde."
+)
+
+UNAVAILABLE_MESSAGE = (
+    "O Conselheiro está temporariamente indisponível. "
+    "Tente novamente em alguns segundos."
 )
 
 
@@ -351,17 +367,18 @@ def _call_gemini(
     - 408 Request Timeout
     - 500 Internal Server Error
     - 502 Bad Gateway
-    - 503 Service Unavailable
     - 504 Gateway Timeout
     """
 
     # 429 fica fora: é cota/limite de chave, esperar não resolve e só
     # aumenta o tempo que o Caçador passa olhando o "..".
+    #
+    # 503 também fica fora: é "high demand" do modelo, e trocar de modelo
+    # responde na hora em vez de esperar o backoff inteiro.
     retry_status_codes = {
         408,
         500,
         502,
-        503,
         504,
     }
 
@@ -536,11 +553,27 @@ def extract_gemini_text(
 # LISTA DE MODELOS
 # ============================================================================
 
+# Quanto tempo um modelo que respondeu 404/503 fica no fim da fila.
+MODEL_COOLDOWN_SECONDS = 300
+
+_resting: dict[str, float] = {}
+
+
+def mark_unavailable(model: str) -> None:
+    """
+    Marca um modelo como indisponível por alguns minutos.
+    """
+
+    _resting[model] = time.monotonic() + MODEL_COOLDOWN_SECONDS
+
+
 def get_models_to_try() -> list[str]:
     """
     Monta a lista de modelos que serão tentados.
 
-    O modelo definido no .env sempre tem prioridade.
+    O modelo definido no .env tem prioridade, mas quem acabou de responder
+    "high demand" vai para o fim da fila: sem isso cada pergunta reaprende o
+    mesmo 503 e a espera do Caçador dobra a cada tentativa.
     """
 
     models: list[str] = []
@@ -555,7 +588,12 @@ def get_models_to_try() -> list[str]:
         if model and model not in models:
             models.append(model)
 
-    return models
+    now = time.monotonic()
+
+    return sorted(
+        models,
+        key=lambda model: _resting.get(model, 0.0) > now,
+    )
 
 
 # ============================================================================
@@ -569,31 +607,24 @@ def skippable_error(
     """
     Trata um erro do Gemini durante o streaming.
 
-    Devolve o motivo quando vale a pena tentar o próximo modelo (404/503) e
-    levanta `CoachUnavailable` quando o erro não tem como ser contornado.
+    Devolve o motivo quando vale a pena tentar o próximo modelo (404/429/503)
+    e levanta `CoachUnavailable` quando o erro não tem como ser contornado.
+
+    O 429 é por modelo, não por chave: com o limite do free tier estourado no
+    modelo principal, o outro ainda responde.
     """
 
     reason = provider_error_message(response)
 
-    if response.status_code == 429:
-        logger.warning(
-            "Gemini retornou 429 no modelo %s: %s",
-            model,
-            reason,
-        )
-
-        raise CoachUnavailable(
-            "A cota ou o limite de requisições da IA "
-            "foi atingido. Tente novamente mais tarde."
-        )
-
-    if response.status_code in (404, 503):
+    if response.status_code in (404, 429, 503):
         logger.warning(
             "Modelo %s indisponível (%s): %s",
             model,
             response.status_code,
             reason,
         )
+
+        mark_unavailable(model)
 
         return reason
 
@@ -658,6 +689,7 @@ async def stream_coach(
         raise CoachUnavailable(DISABLED_MESSAGE)
 
     emitted = False
+    quota_hit = False
 
     async with httpx.AsyncClient(timeout=STREAM_TIMEOUT) as client:
 
@@ -688,16 +720,45 @@ async def stream_coach(
                         # Levanta se o erro é definitivo; senão tenta o próximo.
                         skippable_error(model, response)
 
+                        quota_hit = quota_hit or response.status_code == 429
+
                         continue
 
-                    async for line in response.aiter_lines():
+                    lines = response.aiter_lines()
 
-                        for chunk in sse_text(line):
-                            emitted = True
+                    try:
+                        while not emitted:
+                            line = await asyncio.wait_for(
+                                anext(lines),
+                                FIRST_CHUNK_TIMEOUT_SECONDS,
+                            )
 
-                            yield chunk
+                            for chunk in sse_text(line):
+                                emitted = True
+
+                                yield chunk
+
+                    except StopAsyncIteration:
+                        pass
+
+                    except (TimeoutError, asyncio.TimeoutError):
+                        logger.warning(
+                            "Modelo %s não escreveu nada em %ss; "
+                            "trocando de modelo.",
+                            model,
+                            FIRST_CHUNK_TIMEOUT_SECONDS,
+                        )
+
+                        mark_unavailable(model)
+
+                        continue
 
                     if emitted:
+                        async for line in lines:
+
+                            for chunk in sse_text(line):
+                                yield chunk
+
                         return
 
             except httpx.HTTPError as error:
@@ -724,8 +785,7 @@ async def stream_coach(
             )
 
     raise CoachUnavailable(
-        "O Conselheiro está temporariamente indisponível. "
-        "Tente novamente em alguns segundos."
+        QUOTA_MESSAGE if quota_hit else UNAVAILABLE_MESSAGE
     )
 
 
@@ -762,6 +822,7 @@ def ask_coach(
         )
 
     last_reason = None
+    quota_hit = False
 
     # ------------------------------------------------------------------------
     # Tentativa dos modelos
@@ -820,6 +881,8 @@ def ask_coach(
                 reason,
             )
 
+            mark_unavailable(model)
+
             last_reason = reason
 
             continue
@@ -840,10 +903,13 @@ def ask_coach(
                 reason,
             )
 
-            raise CoachUnavailable(
-                "A cota ou o limite de requisições da IA "
-                "foi atingido. Tente novamente mais tarde."
-            )
+            mark_unavailable(model)
+
+            last_reason = reason
+            quota_hit = True
+
+            # O limite é por modelo: o próximo da fila ainda pode responder.
+            continue
 
         # --------------------------------------------------------------------
         # 503 - serviço temporariamente indisponível
@@ -861,6 +927,8 @@ def ask_coach(
                 model,
                 reason,
             )
+
+            mark_unavailable(model)
 
             last_reason = reason
 
@@ -929,6 +997,5 @@ def ask_coach(
     )
 
     raise CoachUnavailable(
-        "O Conselheiro está temporariamente indisponível. "
-        "Tente novamente em alguns segundos."
+        QUOTA_MESSAGE if quota_hit else UNAVAILABLE_MESSAGE
     )
