@@ -90,4 +90,34 @@ export interface CoachReply {
   remaining_today: number
 }
 
+export const AVATAR_SLOTS = ['skin', 'hair', 'hair_color', 'outfit', 'weapon'] as const
+
+export type AvatarSlot = (typeof AVATAR_SLOTS)[number]
+
+export type AvatarEquipped = Record<AvatarSlot, string>
+
+export interface AvatarPiece {
+  id: string
+  name: string
+  rank: string
+  description: string
+  colors: Record<string, string>
+  features: string[]
+  unlocked: boolean
+}
+
+export interface AvatarState {
+  equipped: AvatarEquipped
+  rank: string
+  catalog: Record<AvatarSlot, AvatarPiece[]>
+}
+
+export const AVATAR_SLOT_LABELS: Record<AvatarSlot, string> = {
+  skin: 'Pele',
+  hair: 'Cabelo',
+  hair_color: 'Cor do cabelo',
+  outfit: 'Set de roupa',
+  weapon: 'Arma',
+}
+
 export const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']

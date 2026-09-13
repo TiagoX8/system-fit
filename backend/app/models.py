@@ -92,6 +92,20 @@ class Punishment(Base):
     unlocked_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class Avatar(Base):
+    __tablename__ = "avatars"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True
+    )
+    skin = Column(String, nullable=False, default="media")
+    hair = Column(String, nullable=False, default="curto")
+    hair_color = Column(String, nullable=False, default="preto")
+    outfit = Column(String, nullable=False, default="treino")
+    weapon = Column(String, nullable=False, default="nenhuma")
+
+
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
 

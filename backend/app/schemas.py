@@ -221,3 +221,31 @@ class CoachResponse(BaseModel):
 class CoachStatusResponse(BaseModel):
     enabled: bool
     messages_per_day: int
+
+
+# ============================================================================
+# AVATAR
+# ============================================================================
+
+class AvatarEquipped(BaseModel):
+    skin: str
+    hair: str
+    hair_color: str
+    outfit: str
+    weapon: str
+
+
+class AvatarPiece(BaseModel):
+    id: str
+    name: str
+    rank: str
+    description: str
+    colors: dict[str, str]
+    features: list[str]
+    unlocked: bool
+
+
+class AvatarResponse(BaseModel):
+    equipped: AvatarEquipped
+    rank: str
+    catalog: dict[str, list[AvatarPiece]]

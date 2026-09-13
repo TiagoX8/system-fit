@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from 'auth-lite-react'
+import { Link } from 'react-router-dom'
 
 import { apiFetch } from '../api'
+import PixelAvatar from '../avatar/PixelAvatar'
 import { enablePushNotifications } from '../push'
-import { DAY_LABELS, type CompleteWorkoutResult, type Progress, type Workout } from '../types'
+import {
+  DAY_LABELS,
+  type AvatarState,
+  type CompleteWorkoutResult,
+  type Progress,
+  type Workout,
+} from '../types'
 
 const RANKS = ['E', 'D', 'C', 'B', 'A', 'S', 'Monarca das Sombras']
 
@@ -16,6 +24,7 @@ export default function Dashboard() {
 
   const [progress, setProgress] = useState<Progress | null>(null)
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [avatar, setAvatar] = useState<AvatarState | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
@@ -24,13 +33,15 @@ export default function Dashboard() {
     if (!token) return
 
     try {
-      const [progressData, workoutsData] = await Promise.all([
+      const [progressData, workoutsData, avatarData] = await Promise.all([
         apiFetch<Progress>('/progress/', token),
         apiFetch<Workout[]>('/workouts/', token),
+        apiFetch<AvatarState>('/avatar/', token),
       ])
 
       setProgress(progressData)
       setWorkouts(workoutsData)
+      setAvatar(avatarData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar o Sistema')
     }
@@ -94,6 +105,13 @@ export default function Dashboard() {
         <p className="panel-tag">Janela de Status</p>
 
         <div className="status-grid">
+          {avatar && (
+            <Link to="/avatar" className="status-avatar">
+              <PixelAvatar catalog={avatar.catalog} equipped={avatar.equipped} scale={5} />
+              <small>Personalizar</small>
+            </Link>
+          )}
+
           <div className="status-rank">
             <span className="status-label">Rank</span>
             <strong className="rank-value">{progress?.rank ?? '—'}</strong>
