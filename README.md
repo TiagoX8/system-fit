@@ -76,6 +76,17 @@ npm run lint
 5. **Penalidade** — ao quebrar a sequência, o Sistema reseta o streak, reduz XP e
    marca a punição correspondente.
 
+## Avatar em pixel art
+
+Tela **Avatar** (`/avatar`): mini avatar desenhado em canvas a partir de uma grade
+16x24 (`frontend/src/avatar/sprite.ts`) — nenhum asset de terceiros. `GET /avatar/`
+devolve o que está equipado, o rank atual e o catálogo com `unlocked` por peça;
+`PUT /avatar/` só aceita peça existente e já liberada (404/403 caso contrário).
+
+Pele, corte e cor de cabelo são livres; sets de roupa e armas abrem por rank
+(E → D → C → B → A → S → Monarca das Sombras), e cada set acrescenta silhueta
+(cinto, ombreiras, capa, elmo, aura). Peça de rank acima aparece bloqueada na tela.
+
 ## Conselheiro do Sistema (IA)
 
 Chat de dúvidas sobre exercícios na bolinha flutuante (canto inferior direito de

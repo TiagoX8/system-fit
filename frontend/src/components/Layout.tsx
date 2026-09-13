@@ -7,6 +7,7 @@ import CoachWidget from './CoachWidget'
 const LINKS = [
   { to: '/dashboard', label: 'Status' },
   { to: '/treinos', label: 'Missões' },
+  { to: '/avatar', label: 'Avatar' },
   { to: '/recompensas', label: 'Recompensas' },
   { to: '/historico', label: 'Registro' },
 ]

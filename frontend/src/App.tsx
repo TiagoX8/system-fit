@@ -2,6 +2,7 @@ import { useAuth } from 'auth-lite-react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import Layout from './components/Layout'
+import AvatarPage from './pages/Avatar'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
 import Login from './pages/Login'
@@ -29,6 +30,7 @@ export default function App() {
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/treinos" element={<Workouts />} />
+        <Route path="/avatar" element={<AvatarPage />} />
         <Route path="/recompensas" element={<Rewards />} />
         <Route path="/historico" element={<History />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
