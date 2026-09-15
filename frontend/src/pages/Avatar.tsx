@@ -18,7 +18,7 @@ export default function AvatarPage() {
 
   const [state, setState] = useState<AvatarState | null>(null)
   const [draft, setDraft] = useState<AvatarEquipped | null>(null)
-  const [slot, setSlot] = useState<AvatarSlot>('outfit')
+  const [slot, setSlot] = useState<AvatarSlot>('char_class')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -40,10 +40,40 @@ export default function AvatarPage() {
     void load()
   }, [load])
 
-  function choose(piece: AvatarPiece) {
-    if (!draft || !piece.unlocked) return
+  function available(piece: AvatarPiece): boolean {
+    return piece.unlocked && (!piece.class_id || piece.class_id === draft?.char_class)
+  }
 
-    setDraft({ ...draft, [slot]: piece.id })
+  /** Motivo do bloqueio, ou `null` quando a peça está liberada. */
+  function lockReason(piece: AvatarPiece): string | null {
+    if (!piece.unlocked) return `Requer rank ${piece.rank}`
+
+    if (piece.class_id && piece.class_id !== draft?.char_class) {
+      const owner = state?.catalog.char_class.find((item) => item.id === piece.class_id)
+
+      return `Exclusivo do ${owner?.name ?? piece.class_id}`
+    }
+
+    return null
+  }
+
+  function choose(piece: AvatarPiece) {
+    if (!draft || !available(piece)) return
+
+    const next: AvatarEquipped = { ...draft, [slot]: piece.id }
+
+    // Trocar de classe derruba as peças exclusivas da classe anterior.
+    if (slot === 'char_class' && state) {
+      for (const key of AVATAR_SLOTS) {
+        const current = state.catalog[key].find((item) => item.id === next[key])
+
+        if (current?.class_id && current.class_id !== piece.id) {
+          next[key] = state.catalog[key][0].id
+        }
+      }
+    }
+
+    setDraft(next)
     setSaved(false)
   }
 
@@ -88,6 +118,7 @@ export default function AvatarPage() {
 
   const dirty = AVATAR_SLOTS.some((key) => draft[key] !== state.equipped[key])
   const pieces = state.catalog[slot]
+  const klass = state.catalog.char_class.find((item) => item.id === draft.char_class)
 
   return (
     <div className="stack">
@@ -100,7 +131,8 @@ export default function AvatarPage() {
           <p className="panel-tag panel-tag--inline">Rank {state.rank}</p>
           <p className="card-meta">
             Arraste o boneco para girar. Sets e armas de rank acima do seu ficam bloqueados até
-            você subir.
+            você subir, e no rank Monarca cada classe tem o set exclusivo dela
+            {klass ? ` (${klass.name})` : ''}.
           </p>
 
           <div className="form-actions">
@@ -147,11 +179,12 @@ export default function AvatarPage() {
           <ul className="avatar-options">
             {pieces.map((piece, index) => {
               const active = draft[slot] === piece.id
+              const usable = available(piece)
 
               const classes = ['avatar-option']
 
               if (active) classes.push('avatar-option--active')
-              if (!piece.unlocked) classes.push('avatar-option--locked')
+              if (!usable) classes.push('avatar-option--locked')
 
               return (
                 <li key={piece.id}>
@@ -159,8 +192,8 @@ export default function AvatarPage() {
                     type="button"
                     className={classes.join(' ')}
                     onClick={() => choose(piece)}
-                    disabled={!piece.unlocked}
-                    title={piece.unlocked ? piece.description : `Requer rank ${piece.rank}`}
+                    disabled={!usable}
+                    title={lockReason(piece) ?? piece.description}
                   >
                     {thumbnails && (
                       <img className="avatar-thumb" src={thumbnails[index]} alt="" />
@@ -168,7 +201,7 @@ export default function AvatarPage() {
 
                     <span className="avatar-option-name">{piece.name}</span>
                     <span className="avatar-option-meta">
-                      {piece.unlocked ? `Rank ${piece.rank}` : `🔒 Rank ${piece.rank}`}
+                      {usable ? `Rank ${piece.rank}` : `🔒 ${lockReason(piece)}`}
                     </span>
                   </button>
                 </li>

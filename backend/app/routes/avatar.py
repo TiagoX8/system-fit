@@ -7,6 +7,7 @@ from app.avatar import (
     catalog_payload,
     equipped_payload,
     find_piece,
+    fits_class,
     get_or_create_avatar,
     is_unlocked,
 )
@@ -62,6 +63,12 @@ def update_avatar(
             raise HTTPException(
                 status_code=403,
                 detail=f"{piece.name} exige o rank {piece.rank}.",
+            )
+
+        if not fits_class(piece, payload.char_class):
+            raise HTTPException(
+                status_code=403,
+                detail=f"{piece.name} é exclusivo da classe {piece.class_id}.",
             )
 
         setattr(avatar, slot, piece_id)

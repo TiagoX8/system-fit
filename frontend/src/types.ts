@@ -90,7 +90,14 @@ export interface CoachReply {
   remaining_today: number
 }
 
-export const AVATAR_SLOTS = ['skin', 'hair', 'hair_color', 'outfit', 'weapon'] as const
+export const AVATAR_SLOTS = [
+  'char_class',
+  'skin',
+  'hair',
+  'hair_color',
+  'outfit',
+  'weapon',
+] as const
 
 export type AvatarSlot = (typeof AVATAR_SLOTS)[number]
 
@@ -103,6 +110,8 @@ export interface AvatarPiece {
   description: string
   colors: Record<string, string>
   features: string[]
+  /** Quando preenchido, só a classe indicada pode equipar a peça. */
+  class_id: string | null
   unlocked: boolean
 }
 
@@ -113,6 +122,7 @@ export interface AvatarState {
 }
 
 export const AVATAR_SLOT_LABELS: Record<AvatarSlot, string> = {
+  char_class: 'Classe',
   skin: 'Pele',
   hair: 'Cabelo',
   hair_color: 'Cor do cabelo',

@@ -28,6 +28,9 @@ class Piece:
     # Detalhes de silhueta que o set adiciona ao corpo base.
     features: list[str] = field(default_factory=list)
 
+    # Quando preenchido, só a classe indicada pode equipar a peça.
+    class_id: str | None = None
+
 
 # ============================================================================
 # PEÇAS SEM RANK (aparência do Caçador)
@@ -38,6 +41,41 @@ SKINS: list[Piece] = [
     Piece("media", "Média", "E", "Tom de pele médio", {"skin": "#d79a68", "shade": "#b1744a"}),
     Piece("morena", "Morena", "E", "Tom de pele moreno", {"skin": "#a86a3d", "shade": "#834d29"}),
     Piece("escura", "Escura", "E", "Tom de pele escuro", {"skin": "#6f4326", "shade": "#4f2d18"}),
+]
+
+CLASSES: list[Piece] = [
+    Piece(
+        "guerreiro",
+        "Guerreiro",
+        "E",
+        "Combate direto: placas pesadas e ombreiras largas.",
+        {"primary": "#8f2f2f", "trim": "#e0b25c"},
+        ["class_pauldron"],
+    ),
+    Piece(
+        "assassino",
+        "Assassino",
+        "E",
+        "Silêncio e velocidade: capuz e couro leve.",
+        {"primary": "#2f2f45", "trim": "#7ee0c0"},
+        ["class_hood"],
+    ),
+    Piece(
+        "mago",
+        "Mago",
+        "E",
+        "Poder arcano: manto longo e runas flutuantes.",
+        {"primary": "#3a2f6b", "trim": "#8fb2ff"},
+        ["class_robe"],
+    ),
+    Piece(
+        "arqueiro",
+        "Arqueiro",
+        "E",
+        "Precisão à distância: aljava nas costas.",
+        {"primary": "#2f5b3a", "trim": "#c8e07e"},
+        ["class_quiver"],
+    ),
 ]
 
 HAIRS: list[Piece] = [
@@ -116,6 +154,42 @@ OUTFITS: list[Piece] = [
         {"primary": "#241b3a", "secondary": "#150f24", "trim": "#a06bff", "cape": "#3a2263"},
         ["belt", "shoulders", "cape", "helmet", "aura"],
     ),
+    Piece(
+        "monarca_guerreiro",
+        "Monarca de Ferro",
+        "Monarca das Sombras",
+        "Set exclusivo do Guerreiro: placas colossais e elmo coroado.",
+        {"primary": "#4a1d1d", "secondary": "#2a1010", "trim": "#e0b25c", "cape": "#7a1f1f"},
+        ["belt", "shoulders", "cape", "helmet", "aura"],
+        "guerreiro",
+    ),
+    Piece(
+        "monarca_assassino",
+        "Monarca Silente",
+        "Monarca das Sombras",
+        "Set exclusivo do Assassino: capuz vivo e manto rasgado.",
+        {"primary": "#16202b", "secondary": "#0d1319", "trim": "#7ee0c0", "cape": "#123028"},
+        ["belt", "cape", "hood", "aura"],
+        "assassino",
+    ),
+    Piece(
+        "monarca_mago",
+        "Monarca Arcano",
+        "Monarca das Sombras",
+        "Set exclusivo do Mago: manto longo com runas suspensas.",
+        {"primary": "#241c4e", "secondary": "#150f2e", "trim": "#8fb2ff", "cape": "#2c1f63"},
+        ["belt", "shoulders", "cape", "robe", "aura"],
+        "mago",
+    ),
+    Piece(
+        "monarca_arqueiro",
+        "Monarca do Vento",
+        "Monarca das Sombras",
+        "Set exclusivo do Arqueiro: couro leve, aljava dupla e capa curta.",
+        {"primary": "#1c3a28", "secondary": "#122519", "trim": "#c8e07e", "cape": "#1f4a2c"},
+        ["belt", "shoulders", "cape", "quiver", "aura"],
+        "arqueiro",
+    ),
 ]
 
 WEAPONS: list[Piece] = [
@@ -166,6 +240,7 @@ WEAPONS: list[Piece] = [
 
 
 SLOTS: dict[str, list[Piece]] = {
+    "char_class": CLASSES,
     "skin": SKINS,
     "hair": HAIRS,
     "hair_color": HAIR_COLORS,
@@ -174,6 +249,7 @@ SLOTS: dict[str, list[Piece]] = {
 }
 
 DEFAULTS: dict[str, str] = {
+    "char_class": "guerreiro",
     "skin": "media",
     "hair": "curto",
     "hair_color": "preto",
@@ -199,6 +275,12 @@ def is_unlocked(piece: Piece, rank: str) -> bool:
     return rank_index(rank) >= rank_index(piece.rank)
 
 
+def fits_class(piece: Piece, class_id: str) -> bool:
+    """Peça sem `class_id` serve para todos; com `class_id` só para a classe."""
+
+    return piece.class_id is None or piece.class_id == class_id
+
+
 def find_piece(slot: str, piece_id: str) -> Piece | None:
     for piece in SLOTS[slot]:
         if piece.id == piece_id:
@@ -219,6 +301,7 @@ def catalog_payload(rank: str) -> dict[str, list[dict]]:
                 "description": piece.description,
                 "colors": piece.colors,
                 "features": piece.features,
+                "class_id": piece.class_id,
                 "unlocked": is_unlocked(piece, rank),
             }
             for piece in pieces
