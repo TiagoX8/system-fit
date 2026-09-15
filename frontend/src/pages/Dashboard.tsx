@@ -3,7 +3,7 @@ import { useAuth } from 'auth-lite-react'
 import { Link } from 'react-router-dom'
 
 import { apiFetch } from '../api'
-import PixelAvatar from '../avatar/PixelAvatar'
+import Avatar3D from '../avatar/Avatar3D'
 import { enablePushNotifications } from '../push'
 import {
   DAY_LABELS,
@@ -107,7 +107,12 @@ export default function Dashboard() {
         <div className="status-grid">
           {avatar && (
             <Link to="/avatar" className="status-avatar">
-              <PixelAvatar catalog={avatar.catalog} equipped={avatar.equipped} scale={5} />
+              <Avatar3D
+                catalog={avatar.catalog}
+                equipped={avatar.equipped}
+                size={150}
+                interactive={false}
+              />
               <small>Personalizar</small>
             </Link>
           )}

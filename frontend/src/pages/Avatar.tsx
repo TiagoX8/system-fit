@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from 'auth-lite-react'
 
 import { apiFetch } from '../api'
-import PixelAvatar from '../avatar/PixelAvatar'
+import Avatar3D from '../avatar/Avatar3D'
+import { renderThumbnails } from '../avatar/snapshot'
 import {
   AVATAR_SLOTS,
   AVATAR_SLOT_LABELS,
@@ -68,6 +69,15 @@ export default function AvatarPage() {
     }
   }
 
+  // Uma imagem por opção do slot atual, renderizada num único contexto WebGL.
+  const thumbnails = useMemo(() => {
+    if (!state || !draft) return null
+
+    const combos = state.catalog[slot].map((piece) => ({ ...draft, [slot]: piece.id }))
+
+    return renderThumbnails(state.catalog, combos)
+  }, [state, draft, slot])
+
   if (!state || !draft) {
     return (
       <div className="stack">
@@ -85,11 +95,12 @@ export default function AvatarPage() {
 
       <section className="system-panel avatar-panel">
         <div className="avatar-stage">
-          <PixelAvatar catalog={state.catalog} equipped={draft} scale={9} />
+          <Avatar3D catalog={state.catalog} equipped={draft} size={280} />
 
           <p className="panel-tag panel-tag--inline">Rank {state.rank}</p>
           <p className="card-meta">
-            Sets e armas de rank acima do seu ficam bloqueados até você subir.
+            Arraste o boneco para girar. Sets e armas de rank acima do seu ficam bloqueados até
+            você subir.
           </p>
 
           <div className="form-actions">
@@ -134,7 +145,7 @@ export default function AvatarPage() {
           </div>
 
           <ul className="avatar-options">
-            {pieces.map((piece) => {
+            {pieces.map((piece, index) => {
               const active = draft[slot] === piece.id
 
               const classes = ['avatar-option']
@@ -151,11 +162,9 @@ export default function AvatarPage() {
                     disabled={!piece.unlocked}
                     title={piece.unlocked ? piece.description : `Requer rank ${piece.rank}`}
                   >
-                    <PixelAvatar
-                      catalog={state.catalog}
-                      equipped={{ ...draft, [slot]: piece.id }}
-                      scale={3}
-                    />
+                    {thumbnails && (
+                      <img className="avatar-thumb" src={thumbnails[index]} alt="" />
+                    )}
 
                     <span className="avatar-option-name">{piece.name}</span>
                     <span className="avatar-option-meta">
