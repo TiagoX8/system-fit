@@ -23,6 +23,8 @@ export function renderThumbnails(
 
   renderer.setPixelRatio(2)
   renderer.setSize(size, size, false)
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.15
 
   const scene = new THREE.Scene()
 
@@ -30,7 +32,7 @@ export function renderThumbnails(
 
   const camera = new THREE.PerspectiveCamera(30, 1, 1, 200)
 
-  camera.position.set(7, 3, FIGURE_HEIGHT * 2.35)
+  camera.position.set(6, 2, FIGURE_HEIGHT * 1.95)
   camera.lookAt(0, 0.5, 0)
 
   const images: string[] = []

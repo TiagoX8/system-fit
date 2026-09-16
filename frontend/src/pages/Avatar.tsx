@@ -99,14 +99,24 @@ export default function AvatarPage() {
     }
   }
 
+  // A lista mostra as peças gerais mais as da classe escolhida; as das outras
+  // classes ficam de fora para o catálogo não virar um mural de bloqueios.
+  const pieces = useMemo(() => {
+    if (!state || !draft) return []
+
+    return state.catalog[slot].filter(
+      (piece) => !piece.class_id || piece.class_id === draft.char_class,
+    )
+  }, [state, draft, slot])
+
   // Uma imagem por opção do slot atual, renderizada num único contexto WebGL.
   const thumbnails = useMemo(() => {
     if (!state || !draft) return null
 
-    const combos = state.catalog[slot].map((piece) => ({ ...draft, [slot]: piece.id }))
+    const combos = pieces.map((piece) => ({ ...draft, [slot]: piece.id }))
 
     return renderThumbnails(state.catalog, combos)
-  }, [state, draft, slot])
+  }, [state, draft, slot, pieces])
 
   if (!state || !draft) {
     return (
@@ -117,7 +127,6 @@ export default function AvatarPage() {
   }
 
   const dirty = AVATAR_SLOTS.some((key) => draft[key] !== state.equipped[key])
-  const pieces = state.catalog[slot]
   const klass = state.catalog.char_class.find((item) => item.id === draft.char_class)
 
   return (
@@ -130,9 +139,9 @@ export default function AvatarPage() {
 
           <p className="panel-tag panel-tag--inline">Rank {state.rank}</p>
           <p className="card-meta">
-            Arraste o boneco para girar. Sets e armas de rank acima do seu ficam bloqueados até
-            você subir, e no rank Monarca cada classe tem o set exclusivo dela
-            {klass ? ` (${klass.name})` : ''}.
+            Arraste o boneco para girar. Cada rank libera sets e armas gerais (qualquer classe usa)
+            e uma linha exclusiva da sua classe{klass ? ` (${klass.name})` : ''}; o que está acima do
+            seu rank fica bloqueado.
           </p>
 
           <div className="form-actions">
@@ -201,7 +210,9 @@ export default function AvatarPage() {
 
                     <span className="avatar-option-name">{piece.name}</span>
                     <span className="avatar-option-meta">
-                      {usable ? `Rank ${piece.rank}` : `🔒 ${lockReason(piece)}`}
+                      {usable
+                        ? `Rank ${piece.rank}${piece.class_id ? ' · exclusivo' : ''}`
+                        : `🔒 ${lockReason(piece)}`}
                     </span>
                   </button>
                 </li>
