@@ -1172,7 +1172,6 @@ function buildWeapon(features: string[], colors: Palette): THREE.Group {
   const hand = new THREE.Group()
 
   hand.position.set(HAND.x, HAND.y, HAND.z)
-  hand.rotation.z = -0.08
 
   const shape = features.find((name) => name.startsWith('shape_'))?.slice('shape_'.length) ?? 'sword'
   const steel: Finish = features.includes('glow') ? 'glow' : 'metal'
@@ -1402,7 +1401,47 @@ function buildWeapon(features: string[], colors: Palette): THREE.Group {
     edge(new THREE.ConeGeometry(0.3, 1.2, 4), { at: [0, 9, 0.1] })
   }
 
+  applyWeaponPose(hand, shape)
+
   return hand
+}
+
+/**
+ * Toda arma é modelada crescendo em +Y a partir da mão; sem girar o grupo ela
+ * fica apontada para o céu. Aqui cada família recebe a pose de porte: lâmina
+ * caída à frente, haste plantada de leve e projétil apontado para frente.
+ */
+function applyWeaponPose(hand: THREE.Group, shape: string) {
+  // Lâmina/impacto: ponta para frente e para baixo, como quem carrega a arma.
+  const blade: [number, number, number] = [2.25, 0, -0.16]
+
+  // Haste longa: quase em pé, inclinada para frente para não virar poste.
+  const polearm: [number, number, number] = [-0.16, 0, -0.1]
+
+  const aimed: [number, number, number] = [-1.35, 0, 0]
+
+  const poses: Record<string, [number, number, number]> = {
+    sword: blade,
+    greatsword: [2.15, 0, -0.14],
+    dagger: [2.35, 0, -0.2],
+    twin_daggers: [2.35, 0, -0.2],
+    katana: [2.2, 0, -0.16],
+    claws: [1.5, 0, -0.1],
+    axe: [2.35, 0, -0.12],
+    axe_double: [2.35, 0, -0.12],
+    hammer: [2.4, 0, -0.12],
+    club: [2.4, 0, -0.12],
+    spear: polearm,
+    polearm,
+    staff: polearm,
+    orb_staff: polearm,
+    scythe: polearm,
+    bow: [0, 0, -0.12],
+    recurve_bow: [0, 0, -0.12],
+    crossbow: aimed,
+  }
+
+  hand.rotation.set(...(poses[shape] ?? blade))
 }
 
 export function hasAura(catalog: Catalog, equipped: AvatarEquipped): boolean {
