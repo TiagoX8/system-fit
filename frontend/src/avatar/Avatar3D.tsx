@@ -46,6 +46,8 @@ export default function Avatar3D({ catalog, equipped, size = 260, interactive = 
 
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(size, size * 1.15, false)
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.15
 
     const scene = new THREE.Scene()
 
@@ -54,7 +56,7 @@ export default function Avatar3D({ catalog, equipped, size = 260, interactive = 
 
     const camera = new THREE.PerspectiveCamera(30, 1 / 1.15, 1, 200)
 
-    camera.position.set(0, 2, FIGURE_HEIGHT * 2.75)
+    camera.position.set(0, 1.5, FIGURE_HEIGHT * 2.2)
     camera.lookAt(0, 0, 0)
 
     const pivot = new THREE.Group()
@@ -79,6 +81,23 @@ export default function Avatar3D({ catalog, equipped, size = 260, interactive = 
       if (shell) {
         shell.rotation.y = time * 0.5
         shell.rotation.x = time * 0.2
+      }
+
+      const runes = pivot.getObjectByName('fx-runes')
+
+      if (runes) {
+        runes.rotation.y = -time * 0.6
+      }
+
+      // Brasas sobem e reaparecem embaixo, sem custo de partículas de verdade.
+      const embers = pivot.getObjectByName('fx-embers')
+
+      if (embers) {
+        embers.rotation.y = time * 0.25
+
+        for (const [index, ember] of embers.children.entries()) {
+          ember.position.y = ((index * 1.4 + time * 2.4) % 20) + 0.5
+        }
       }
 
       renderer.render(scene, camera)

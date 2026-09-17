@@ -228,6 +228,7 @@ class CoachStatusResponse(BaseModel):
 # ============================================================================
 
 class AvatarEquipped(BaseModel):
+    char_class: str
     skin: str
     hair: str
     hair_color: str
@@ -242,6 +243,7 @@ class AvatarPiece(BaseModel):
     description: str
     colors: dict[str, str]
     features: list[str]
+    class_id: str | None = None
     unlocked: bool
 
 

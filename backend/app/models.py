@@ -99,6 +99,7 @@ class Avatar(Base):
     user_id = Column(
         Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True
     )
+    char_class = Column(String, nullable=False, default="guerreiro")
     skin = Column(String, nullable=False, default="media")
     hair = Column(String, nullable=False, default="curto")
     hair_color = Column(String, nullable=False, default="preto")
